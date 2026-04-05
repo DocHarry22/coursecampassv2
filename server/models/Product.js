@@ -15,4 +15,9 @@ const productSchema = new mongoose.Schema(
   }
 );
 
+productSchema.index({ name: 1 });
+productSchema.index({ category: 1, price: 1 });
+productSchema.index({ rating: -1 });
+productSchema.index({ supply: 1 });
+
 export default mongoose.model("Product", productSchema);

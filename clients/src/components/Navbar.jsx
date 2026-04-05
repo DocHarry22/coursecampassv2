@@ -17,13 +17,33 @@ import PublicOutlinedIcon from "@mui/icons-material/PublicOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import { useDispatch, useSelector } from "react-redux";
 import { setMode } from "state";
+import { useNavigate } from "react-router-dom";
+import { useSession } from "../auth/SessionContext";
 
 const Navbar = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const mode = useSelector((state) => state.global.mode);
+  const navigate = useNavigate();
+  const { session, logout } = useSession();
+
+  const displayName = session?.name || "Learner";
+  const displayRole = session?.role || "Student";
+
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((entry) => entry[0]?.toUpperCase())
+    .join("") || "CC";
+
+  const handleSignOut = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <AppBar
@@ -61,7 +81,11 @@ const Navbar = () => {
               minWidth: 230,
             }}
           >
-            <InputBase placeholder="Search here..." sx={{ flex: 1, fontSize: 13 }} />
+            <InputBase
+              placeholder="Search here..."
+              sx={{ flex: 1, fontSize: 13 }}
+              inputProps={{ "aria-label": "Search learning data" }}
+            />
             <SearchIcon sx={{ color: "#64748b", fontSize: 18 }} />
           </Box>
 
@@ -71,6 +95,7 @@ const Navbar = () => {
               variant="standard"
               disableUnderline
               value={mode === "light" ? "English" : "English"}
+              inputProps={{ "aria-label": "Language" }}
               sx={{ fontSize: 13, color: "#334155" }}
             >
               <MenuItem value="English">English</MenuItem>
@@ -79,13 +104,13 @@ const Navbar = () => {
 
           <Box sx={{ display: { xs: "none", md: "block" }, width: 1, height: 28, bgcolor: "#dbe6f3" }} />
 
-          <IconButton size="small" sx={{ color: "#334155" }}>
+          <IconButton size="small" sx={{ color: "#334155" }} aria-label="Notifications">
             <Badge badgeContent={4} color="error">
               <NotificationsOutlinedIcon fontSize="small" />
             </Badge>
           </IconButton>
 
-          <IconButton size="small" sx={{ color: "#334155" }}>
+          <IconButton size="small" sx={{ color: "#334155" }} aria-label="Messages">
             <Badge badgeContent={5} color="primary">
               <MailOutlineIcon fontSize="small" />
             </Badge>
@@ -93,20 +118,29 @@ const Navbar = () => {
 
           <Box display="flex" alignItems="center" gap={1.25}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main, fontSize: 13 }}>
-              D
+              {initials}
             </Avatar>
             <Box sx={{ display: { xs: "none", md: "block" } }}>
               <Typography variant="body2" fontWeight={700} lineHeight={1.1}>
-                DocHar
+                {displayName}
               </Typography>
               <Typography variant="caption" color="#64748b">
-                Student
+                {displayRole}
               </Typography>
             </Box>
           </Box>
 
-          <IconButton size="small" sx={{ color: "#64748b" }} onClick={() => dispatch(setMode())}>
+          <IconButton
+            size="small"
+            sx={{ color: "#64748b" }}
+            onClick={() => dispatch(setMode())}
+            aria-label="Toggle color mode"
+          >
             <SettingsOutlinedIcon fontSize="small" />
+          </IconButton>
+
+          <IconButton size="small" sx={{ color: "#64748b" }} onClick={handleSignOut} aria-label="Sign out">
+            <LogoutOutlinedIcon fontSize="small" />
           </IconButton>
         </Box>
       </Toolbar>

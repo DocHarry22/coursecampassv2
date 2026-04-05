@@ -6,10 +6,28 @@ import {
 	getFallbackTransactions,
 	isDatabaseConnected,
 } from "../utils/fallbackData.js";
+import { sendApiResponse } from "../utils/response.js";
+
+const defaultTransactionsQueryOptions = {
+	limit: 12,
+	page: 1,
+	offset: null,
+	skip: 0,
+	sortField: "_id",
+	sortOrder: -1,
+	filters: {
+		userId: null,
+		minCost: null,
+		maxCost: null,
+	},
+};
 
 export const getDashboardMetrics = async (req, res) => {
 	if (!isDatabaseConnected(req)) {
-		res.status(200).json(getFallbackDashboardMetrics());
+		sendApiResponse(res, 200, getFallbackDashboardMetrics(), {
+			source: "fallback",
+			fallbackReason: "database_unavailable",
+		});
 		return;
 	}
 
@@ -28,35 +46,76 @@ export const getDashboardMetrics = async (req, res) => {
 			]),
 		]);
 
-		res.status(200).json({
+		sendApiResponse(
+			res,
+			200,
+			{
 			users,
 			products,
 			transactions,
 			revenue: revenueResult[0]?.revenue ?? 0,
-		});
+			},
+			{ source: "database" }
+		);
 	} catch (error) {
-		res.status(200).json({
-			...getFallbackDashboardMetrics(),
-			message: error.message,
-		});
+		sendApiResponse(
+			res,
+			200,
+			{
+				...getFallbackDashboardMetrics(),
+				message: error.message,
+			},
+			{
+				source: "fallback",
+				fallbackReason: "query_error",
+			}
+		);
 	}
 };
 
 export const getTransactions = async (req, res) => {
+	const queryOptions = req.queryOptions ?? defaultTransactionsQueryOptions;
+
 	if (!isDatabaseConnected(req)) {
-		res.status(200).json(getFallbackTransactions());
+		sendApiResponse(res, 200, getFallbackTransactions(queryOptions), {
+			source: "fallback",
+			fallbackReason: "database_unavailable",
+		});
 		return;
 	}
 
 	try {
-		const transactions = await Transaction.find()
-			.sort({ _id: -1 })
-			.limit(12)
+		const { limit, skip, sortField, sortOrder, filters } = queryOptions;
+		const mongoFilter = {};
+
+		if (filters.userId) {
+			mongoFilter.userId = filters.userId;
+		}
+
+		if (filters.minCost !== null || filters.maxCost !== null) {
+			mongoFilter.cost = {};
+
+			if (filters.minCost !== null) {
+				mongoFilter.cost.$gte = filters.minCost;
+			}
+
+			if (filters.maxCost !== null) {
+				mongoFilter.cost.$lte = filters.maxCost;
+			}
+		}
+
+		const transactions = await Transaction.find(mongoFilter)
+			.sort({ [sortField]: sortOrder })
+			.skip(skip)
+			.limit(limit)
 			.populate("userId", "name email country")
 			.lean();
 
-		res.status(200).json(transactions);
+		sendApiResponse(res, 200, transactions, { source: "database" });
 	} catch (error) {
-		res.status(200).json(getFallbackTransactions());
+		sendApiResponse(res, 200, getFallbackTransactions(queryOptions), {
+			source: "fallback",
+			fallbackReason: "query_error",
+		});
 	}
 };

@@ -5,6 +5,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import App from "./App";
 import "./index.css";
 import globalReducer from "state";
+import { SessionProvider } from "./auth/SessionContext";
 
 const store = configureStore({
   reducer: {
@@ -15,7 +16,9 @@ const store = configureStore({
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Provider store={store}>
-      <App />
+      <SessionProvider>
+        <App />
+      </SessionProvider>
     </Provider>
   </React.StrictMode>
 );

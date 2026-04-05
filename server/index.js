@@ -6,44 +6,90 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from "cookie-parser";
 import clientRoutes from "./routes/client.js";
 import generalRoutes from "./routes/general.js";
 import managementRoutes from "./routes/management.js";
 import salesRoutes from "./routes/sales.js";
+import authRoutes from "./routes/auth.js";
+import coursesRoutes from "./routes/courses.js";
+import schoolsRoutes from "./routes/schools.js";
+import financialAidRoutes from "./routes/financialAid.js";
+import todosRoutes from "./routes/todos.js";
+import calendarRoutes from "./routes/calendar.js";
+import accountRoutes from "./routes/account.js";
+import adminRoutes from "./routes/admin.js";
+import { requestContext } from "./middleware/requestContext.js";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
+import { authRateLimiter, apiRateLimiter } from "./middleware/rateLimit.js";
+import { buildCorsOptions, configureExpressSecurity, getHelmetOptions } from "./middleware/security.js";
+import { initializeObservability, observabilityMiddleware, registerProcessHooks } from "./middleware/observability.js";
+import { sendApiResponse } from "./utils/response.js";
 
 /* CONFIGURATION */
 dotenv.config();
 const app = express();
 app.locals.startedAt = new Date().toISOString();
 app.locals.dbStatus = process.env.MONGO_URL ? "connecting" : "disabled";
-app.use(express.json())
-app.use(helmet());
-app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin"}));
-app.use(morgan("common"))
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cors());
+configureExpressSecurity(app);
+initializeObservability(app);
+
+const jsonBodyLimit = process.env.JSON_BODY_LIMIT || "1mb";
+const corsOptions = buildCorsOptions();
+
+app.use(express.json({ limit: jsonBodyLimit }));
+app.use(requestContext);
+app.use(observabilityMiddleware);
+app.use(helmet(getHelmetOptions()));
+morgan.token("request-id", (req) => req.requestId || "-");
+app.use(
+    morgan(
+        '{"level":"info","requestId":":request-id","method":":method","url":":url","status":":status","responseTimeMs":":response-time","contentLength":":res[content-length]"}'
+    )
+);
+app.use(bodyParser.json({ limit: jsonBodyLimit }));
+app.use(bodyParser.urlencoded({ extended: false, limit: jsonBodyLimit }));
+app.use(cookieParser());
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+app.use(apiRateLimiter);
 
 app.get("/", (_req, res) => {
-    res.status(200).json({
+    sendApiResponse(
+        res,
+        200,
+        {
         name: "CourseCompass API",
         status: "ok",
         startedAt: app.locals.startedAt,
         dbStatus: app.locals.dbStatus,
-    });
+        },
+        { source: "system" }
+    );
 });
 
 /* ROUTES */ 
-app.use("/client", clientRoutes);
+app.use("/auth", authRateLimiter, authRoutes);
 app.use("/general", generalRoutes);
+app.use("/client", clientRoutes);
 app.use("/management", managementRoutes);
 app.use("/sales", salesRoutes);
+app.use("/courses", coursesRoutes);
+app.use("/schools", schoolsRoutes);
+app.use("/financial-aid", financialAidRoutes);
+app.use("/todos", todosRoutes);
+app.use("/calendar", calendarRoutes);
+app.use("/account", accountRoutes);
+app.use("/admin", adminRoutes);
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 /* MONGOOSE SETUP */
 const PORT = process.env.PORT || 9000;
 
 const startServer = () => {
     const server = app.listen(PORT, () => console.log(`Server Port: ${PORT}`));
+    registerProcessHooks({ app, server });
 
     server.on("error", (error) => {
         if (error.code === "EADDRINUSE") {

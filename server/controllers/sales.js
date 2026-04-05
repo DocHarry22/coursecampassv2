@@ -2,10 +2,14 @@ import AffiliateStat from "../models/AffiliateStat.js";
 import OverallStat from "../models/OverallStat.js";
 import ProductStat from "../models/ProductStat.js";
 import { getFallbackSalesOverview, isDatabaseConnected } from "../utils/fallbackData.js";
+import { sendApiResponse } from "../utils/response.js";
 
 export const getSalesOverview = async (req, res) => {
 	if (!isDatabaseConnected(req)) {
-		res.status(200).json(getFallbackSalesOverview());
+		sendApiResponse(res, 200, getFallbackSalesOverview(), {
+			source: "fallback",
+			fallbackReason: "database_unavailable",
+		});
 		return;
 	}
 
@@ -16,12 +20,20 @@ export const getSalesOverview = async (req, res) => {
 			AffiliateStat.countDocuments(),
 		]);
 
-		res.status(200).json({
-			overallStat,
-			productStatsCount,
-			affiliateStatsCount,
-		});
+		sendApiResponse(
+			res,
+			200,
+			{
+				overallStat,
+				productStatsCount,
+				affiliateStatsCount,
+			},
+			{ source: "database" }
+		);
 	} catch (error) {
-		res.status(200).json(getFallbackSalesOverview());
+		sendApiResponse(res, 200, getFallbackSalesOverview(), {
+			source: "fallback",
+			fallbackReason: "query_error",
+		});
 	}
 };

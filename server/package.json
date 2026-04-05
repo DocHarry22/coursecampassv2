@@ -5,20 +5,27 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test tests/dashboard-contract.test.mjs tests/rbac-governance.test.mjs",
+    "test:dashboard-contract": "node --test tests/dashboard-contract.test.mjs",
+    "test:rbac": "node --test tests/rbac-governance.test.mjs",
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "test:rbac-live": "node tests/rbac-live-check.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-rate-limit": "^8.3.2",
     "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^7.6.1",
     "morgan": "^1.10.0",
     "nodemon": "^3.0.1"

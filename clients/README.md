@@ -57,3 +57,16 @@ To generate a Hostinger-ready folder and zip in one step:
 Set-Location ..\deploy
 .\Build-HostingerPackage.ps1 -ApiUrl "https://api.your-domain.example"
 ```
+
+To rebuild and upload directly to Hostinger over SFTP:
+
+```powershell
+Set-Location ..\deploy
+.\Publish-HostingerFrontend.ps1 -Protocol "ftp" -Host "ftp.docheng.co.za" -Username "u836398163.Admin" -RemotePath "/home/u836398163/domains/docheng.co.za/public_html/desk" -CleanRemoteAssets
+```
+
+For this repo, the quickest shortcut is from the project root:
+
+```powershell
+.\deploy-live.ps1
+```
