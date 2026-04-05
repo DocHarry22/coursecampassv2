@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "state": ["src/state"],
+            "theme": ["src/theme.js"],
+            "components": ["src/components"],
+            "scenes": ["src/scenes"],
+            "assets": ["src/assets"]
+        }
+    },
+    "include": ["src"]
+}
