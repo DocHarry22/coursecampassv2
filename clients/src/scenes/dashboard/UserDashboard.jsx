@@ -80,19 +80,19 @@ const UserDashboard = ({ viewModel, onRefresh }) => {
   ];
 
   return (
-    <Grid container spacing={1.25}>
+    <Grid container spacing={1.5}>
       <Grid item xs={12}>
-        <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none" }}>
+        <Card>
           <CardContent>
-            <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+            <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
               Personal Planning
             </Typography>
             <List disablePadding>
               {viewModel.learnerRows.map((kpi) => (
                 <ListItem key={kpi.key} disableGutters divider>
                   <ListItemText
-                    primaryTypographyProps={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}
-                    secondaryTypographyProps={{ fontSize: 12, color: "#64748b" }}
+                    primaryTypographyProps={{ fontSize: 13, fontWeight: 700, color: "text.primary" }}
+                    secondaryTypographyProps={{ fontSize: 12, color: "text.secondary" }}
                     primary={kpi.label}
                     secondary={formatKpiValue(kpi)}
                   />
@@ -104,23 +104,28 @@ const UserDashboard = ({ viewModel, onRefresh }) => {
       </Grid>
 
       <Grid item xs={12} lg={7}>
-        <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none" }}>
+        <Card>
           <CardContent>
-            <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+            <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
               Owned Module Health
             </Typography>
             <Stack spacing={1}>
               {moduleHealth.map((module) => (
                 <Box
                   key={module.name}
-                  sx={{ border: "1px solid #e2e8f0", borderRadius: 2, p: 1.1, backgroundColor: "#fbfdff" }}
+                  sx={(theme) => ({
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 1.25,
+                    backgroundColor: theme.palette.background.alt,
+                  })}
                 >
                   <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
                     <Box>
-                      <Typography variant="body2" fontWeight={700} color="#0f172a">
+                      <Typography variant="body2" fontWeight={700} color="text.primary">
                         {module.name}
                       </Typography>
-                      <Typography variant="caption" color="#64748b">
+                      <Typography variant="caption" color="text.secondary">
                         {module.metric}
                       </Typography>
                     </Box>
@@ -134,9 +139,9 @@ const UserDashboard = ({ viewModel, onRefresh }) => {
       </Grid>
 
       <Grid item xs={12} lg={5}>
-        <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none", height: "100%" }}>
+        <Card sx={{ height: "100%" }}>
           <CardContent>
-            <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+            <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
               Quick Actions
             </Typography>
             <Stack spacing={1}>

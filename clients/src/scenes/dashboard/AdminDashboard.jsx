@@ -39,11 +39,11 @@ const AdminDashboard = ({ viewModel, onRefresh }) => {
   const navigate = useNavigate();
 
   return (
-    <Grid container spacing={1.25}>
+    <Grid container spacing={1.5}>
       <Grid item xs={12} lg={7}>
-        <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none", height: "100%" }}>
+        <Card sx={{ height: "100%" }}>
           <CardContent>
-            <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+            <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
               Operational Metrics
             </Typography>
             {viewModel.operationsRows.length > 0 ? (
@@ -51,8 +51,8 @@ const AdminDashboard = ({ viewModel, onRefresh }) => {
                 {viewModel.operationsRows.map((kpi) => (
                   <ListItem key={kpi.key} disableGutters divider>
                     <ListItemText
-                      primaryTypographyProps={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}
-                      secondaryTypographyProps={{ fontSize: 12, color: "#64748b" }}
+                      primaryTypographyProps={{ fontSize: 13, fontWeight: 700, color: "text.primary" }}
+                      secondaryTypographyProps={{ fontSize: 12, color: "text.secondary" }}
                       primary={kpi.label}
                       secondary={formatKpiValue(kpi)}
                     />
@@ -67,9 +67,9 @@ const AdminDashboard = ({ viewModel, onRefresh }) => {
       </Grid>
 
       <Grid item xs={12} lg={5}>
-        <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none", height: "100%" }}>
+        <Card sx={{ height: "100%" }}>
           <CardContent>
-            <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+            <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
               Catalog Management Actions
             </Typography>
             <Stack spacing={1}>
@@ -83,27 +83,48 @@ const AdminDashboard = ({ viewModel, onRefresh }) => {
       </Grid>
 
       <Grid item xs={12}>
-        <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none" }}>
+        <Card>
           <CardContent>
-            <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1}>
+            <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1}>
               Admin Feature Panels
             </Typography>
             <Box
               display="grid"
-              gridTemplateColumns={{ xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }}
-              gap={1}
+              gridTemplateColumns={{ xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }}
+              gap={1.25}
             >
-              <Box sx={{ border: "1px solid #e2e8f0", borderRadius: 2, p: 1.1, backgroundColor: "#fbfdff" }}>
-                <Typography variant="body2" fontWeight={700} color="#0f172a">Catalog Workflow</Typography>
-                <Typography variant="caption" color="#64748b">Create and update courses and schools using role-approved write routes.</Typography>
+              <Box
+                sx={(theme) => ({
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  p: 1.25,
+                  backgroundColor: theme.palette.background.alt,
+                })}
+              >
+                <Typography variant="body2" fontWeight={700} color="text.primary">Catalog Workflow</Typography>
+                <Typography variant="caption" color="text.secondary">Create and update courses and schools using role-approved write routes.</Typography>
               </Box>
-              <Box sx={{ border: "1px solid #e2e8f0", borderRadius: 2, p: 1.1, backgroundColor: "#fbfdff" }}>
-                <Typography variant="body2" fontWeight={700} color="#0f172a">Operations Snapshot</Typography>
-                <Typography variant="caption" color="#64748b">Track users, products, transactions, and revenue from contract-backed metrics.</Typography>
+              <Box
+                sx={(theme) => ({
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  p: 1.25,
+                  backgroundColor: theme.palette.background.alt,
+                })}
+              >
+                <Typography variant="body2" fontWeight={700} color="text.primary">Operations Snapshot</Typography>
+                <Typography variant="caption" color="text.secondary">Track users, products, transactions, and revenue from contract-backed metrics.</Typography>
               </Box>
-              <Box sx={{ border: "1px solid #e2e8f0", borderRadius: 2, p: 1.1, backgroundColor: "#fbfdff" }}>
-                <Typography variant="body2" fontWeight={700} color="#0f172a">Role Boundaries</Typography>
-                <Typography variant="caption" color="#64748b">Governance and destructive overrides remain superadmin-only by policy.</Typography>
+              <Box
+                sx={(theme) => ({
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  p: 1.25,
+                  backgroundColor: theme.palette.background.alt,
+                })}
+              >
+                <Typography variant="body2" fontWeight={700} color="text.primary">Role Boundaries</Typography>
+                <Typography variant="caption" color="text.secondary">Governance and destructive overrides remain superadmin-only by policy.</Typography>
               </Box>
             </Box>
           </CardContent>

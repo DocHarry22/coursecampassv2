@@ -17,7 +17,7 @@ if (-not (Test-Path $publishScript)) {
 
 $publishParams = @{
     Protocol = $Protocol
-    Host = "ftp.docheng.co.za"
+    ServerHost = "ftp.docheng.co.za"
     Username = "u836398163.Admin"
     RemotePath = "/home/u836398163/domains/docheng.co.za/public_html/desk"
 }

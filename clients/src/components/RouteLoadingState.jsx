@@ -7,8 +7,8 @@ const RouteLoadingState = () => {
       role="status"
       aria-live="polite"
       aria-label="Loading page"
-      minHeight="100vh"
-      sx={{ backgroundColor: "#f8fbff" }}
+      minHeight="100dvh"
+      sx={(theme) => ({ backgroundColor: theme.palette.background.default })}
       px={{ xs: 1.5, md: 2 }}
       py={{ xs: 1.5, md: 2 }}
     >
@@ -30,7 +30,11 @@ const RouteLoadingState = () => {
 
       <Stack spacing={1.5}>
         <Skeleton variant="rounded" height={56} />
-        <Box display="grid" gridTemplateColumns={{ xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }} gap={1.25}>
+        <Box
+          display="grid"
+          gridTemplateColumns={{ xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }}
+          gap={1.25}
+        >
           <Skeleton variant="rounded" height={120} />
           <Skeleton variant="rounded" height={120} />
           <Skeleton variant="rounded" height={120} />

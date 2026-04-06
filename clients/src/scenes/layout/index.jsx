@@ -1,11 +1,15 @@
 import React from "react";
 import {
+    alpha,
   Avatar,
   Box,
+    Drawer,
   IconButton,
   Stack,
   Tooltip,
   Typography,
+    useMediaQuery,
+    useTheme,
 } from "@mui/material";
 import { NavLink, Outlet } from "react-router-dom";
 import { useSession } from "auth/SessionContext";
@@ -63,9 +67,27 @@ const navSections = [
     },
 ];
 
+const SIDEBAR_BACKGROUND = "linear-gradient(180deg, #ffb400 0%, #f59e0b 42px, #375a9e 42px, #365b9c 100%)";
+
 
 const Layout = () => {
-    const { roleHomePath, capabilities } = useSession();
+    const theme = useTheme();
+    const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+    const { roleHomePath, capabilities, session } = useSession();
+    const sidebarWidth = { xs: 78, md: 92 };
+    const expandedSidebarWidth = { xs: 214, md: 236 };
+    const profileImageUrl = session?.avatarUrl || session?.profileImageUrl || session?.photoUrl || null;
+    const [isDesktopSidebarExpanded, setIsDesktopSidebarExpanded] = React.useState(isDesktop);
+    const [isMobileNavOpen, setIsMobileNavOpen] = React.useState(false);
+
+    React.useEffect(() => {
+        setIsDesktopSidebarExpanded(isDesktop);
+
+        if (isDesktop) {
+            setIsMobileNavOpen(false);
+        }
+    }, [isDesktop]);
+
     const computedNavItems = React.useMemo(
         () =>
             navSections
@@ -83,8 +105,252 @@ const Layout = () => {
         [capabilities, roleHomePath]
     );
 
+    const handleToggleDesktopSidebar = () => {
+        setIsDesktopSidebarExpanded((previousValue) => !previousValue);
+    };
+
+    const handleOpenMobileNav = () => {
+        setIsMobileNavOpen(true);
+    };
+
+    const handleCloseMobileNav = () => {
+        setIsMobileNavOpen(false);
+    };
+
+    const handleNavItemSelect = () => {
+        if (!isDesktop) {
+            setIsMobileNavOpen(false);
+        }
+    };
+
+    const renderNavContent = ({ expanded, onToggle }) => (
+        <>
+            <Box
+                width="100%"
+                px={expanded ? 1.25 : 1}
+                pb={1}
+                sx={{
+                    borderBottom: `1px solid ${alpha("#ffffff", 0.22)}`,
+                    backgroundColor: alpha("#13356f", 0.13),
+                    backdropFilter: "blur(5px)",
+                }}
+            >
+                <Box display="flex" alignItems="center" justifyContent="space-between" minHeight={34}>
+                    <Box minWidth={0}>
+                        {expanded ? (
+                            <Typography fontSize={11} fontWeight={800} lineHeight={1.15} letterSpacing="0.01em">
+                                Course Campass
+                            </Typography>
+                        ) : null}
+                        {expanded ? (
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    color: alpha("#ffffff", 0.72),
+                                    letterSpacing: "0.04em",
+                                }}
+                            >
+                                Navigation Hub
+                            </Typography>
+                        ) : null}
+                    </Box>
+                    <IconButton
+                        size="small"
+                        onClick={onToggle}
+                        sx={{
+                            color: "#fff",
+                            ml: expanded ? 0 : "auto",
+                            border: `1px solid ${alpha("#ffffff", 0.24)}`,
+                            backgroundColor: alpha("#ffffff", 0.08),
+                            '&:hover': {
+                                backgroundColor: alpha("#ffffff", 0.18),
+                            },
+                        }}
+                        aria-label={expanded ? "Collapse navigation menu" : "Expand navigation menu"}
+                    >
+                        <MenuIcon sx={{ fontSize: 17 }} />
+                    </IconButton>
+                </Box>
+            </Box>
+
+            {profileImageUrl ? (
+                <Avatar
+                    src={profileImageUrl}
+                    alt={session?.name || "User profile"}
+                    sx={{
+                        width: 42,
+                        height: 42,
+                        mt: 1,
+                        mb: 1.5,
+                        border: "2px solid rgba(255,255,255,0.8)",
+                        boxShadow: `0 8px 20px ${alpha("#0a1f44", 0.32)}`,
+                    }}
+                />
+            ) : null}
+
+            <Stack
+                spacing={0.75}
+                width="100%"
+                px={expanded ? 1.25 : 0.9}
+                sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: "auto",
+                    pb: 1,
+                    '&::-webkit-scrollbar': {
+                        width: 6,
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: alpha("#ffffff", 0.35),
+                        borderRadius: 99,
+                    },
+                }}
+            >
+                {computedNavItems.map((section) => (
+                    <Box key={section.key}>
+                        {expanded ? (
+                            <Box display="flex" alignItems="center" gap={0.8} px={1} py={0.5}>
+                                <Typography
+                                    sx={{
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        letterSpacing: "0.06em",
+                                        textTransform: "uppercase",
+                                        color: "rgba(248, 251, 255, 0.85)",
+                                    }}
+                                >
+                                    {section.title}
+                                </Typography>
+                                <Box
+                                    flex={1}
+                                    height={1}
+                                    sx={{
+                                        background: `linear-gradient(90deg, ${alpha("#ffffff", 0.28)}, ${alpha("#ffffff", 0.04)})`,
+                                    }}
+                                />
+                            </Box>
+                        ) : null}
+
+                        <Stack spacing={0.5}>
+                            {section.items.map((item) => {
+                                const Icon = item.icon;
+
+                                const linkContent = (
+                                    <NavLink
+                                        to={item.path}
+                                        onClick={handleNavItemSelect}
+                                        style={{ textDecoration: "none" }}
+                                        aria-label={item.label}
+                                    >
+                                        {({ isActive }) => (
+                                            <Box
+                                                sx={{
+                                                    position: "relative",
+                                                    overflow: "hidden",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: expanded ? "flex-start" : "center",
+                                                    gap: 1,
+                                                    py: 0.95,
+                                                    px: expanded ? 1 : 0.75,
+                                                    borderRadius: 2,
+                                                    border: `1px solid ${isActive ? alpha("#ffffff", 0.28) : "transparent"}`,
+                                                    backgroundColor: isActive ? alpha("#ffffff", 0.22) : alpha("#ffffff", 0.03),
+                                                    color: "#f8fbff",
+                                                    cursor: "pointer",
+                                                    transition: "transform 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease",
+                                                    transform: isActive ? "translateX(2px)" : "translateX(0)",
+                                                    boxShadow: isActive ? `0 10px 20px ${alpha("#0a1f44", 0.25)}` : "none",
+                                                    '&::before': {
+                                                        content: '""',
+                                                        position: "absolute",
+                                                        left: 0,
+                                                        top: 7,
+                                                        bottom: 7,
+                                                        width: 3,
+                                                        borderRadius: 99,
+                                                        backgroundColor: isActive ? alpha("#ffffff", 0.9) : "transparent",
+                                                        transition: "background-color 140ms ease",
+                                                    },
+                                                    '&::after': {
+                                                        content: '""',
+                                                        position: "absolute",
+                                                        inset: 0,
+                                                        background: `linear-gradient(120deg, ${alpha("#ffffff", 0)} 0%, ${alpha("#ffffff", 0.14)} 45%, ${alpha("#ffffff", 0)} 100%)`,
+                                                        transform: "translateX(-102%)",
+                                                        opacity: 0,
+                                                        transition: "transform 220ms ease, opacity 220ms ease",
+                                                        pointerEvents: "none",
+                                                    },
+                                                    '&:hover': {
+                                                        backgroundColor: alpha("#ffffff", 0.16),
+                                                        borderColor: alpha("#ffffff", 0.22),
+                                                        transform: "translateX(4px)",
+                                                        boxShadow: `0 10px 20px ${alpha("#0a1f44", 0.28)}`,
+                                                        '& .nav-icon-shell': {
+                                                            backgroundColor: alpha("#ffffff", 0.28),
+                                                            transform: "scale(1.05)",
+                                                        },
+                                                        '&::after': {
+                                                            opacity: 1,
+                                                            transform: "translateX(0)",
+                                                        },
+                                                    },
+                                                }}
+                                            >
+                                                <Box
+                                                    className="nav-icon-shell"
+                                                    sx={{
+                                                        width: 28,
+                                                        height: 28,
+                                                        borderRadius: 1.5,
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        backgroundColor: isActive ? alpha("#ffffff", 0.3) : alpha("#ffffff", 0.12),
+                                                        border: `1px solid ${isActive ? alpha("#ffffff", 0.3) : alpha("#ffffff", 0.16)}`,
+                                                        transition: "transform 160ms ease, background-color 160ms ease",
+                                                    }}
+                                                >
+                                                    <Icon sx={{ fontSize: 17 }} />
+                                                </Box>
+                                                {expanded ? (
+                                                    <Typography
+                                                        sx={{
+                                                            fontSize: 12.5,
+                                                            fontWeight: isActive ? 700 : 600,
+                                                            whiteSpace: "nowrap",
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                        }}
+                                                    >
+                                                        {item.label}
+                                                    </Typography>
+                                                ) : null}
+                                            </Box>
+                                        )}
+                                    </NavLink>
+                                );
+
+                                return expanded ? (
+                                    <Box key={item.label}>{linkContent}</Box>
+                                ) : (
+                                    <Tooltip title={item.label} placement="right" key={item.label}>
+                                        {linkContent}
+                                    </Tooltip>
+                                );
+                            })}
+                        </Stack>
+                    </Box>
+                ))}
+            </Stack>
+        </>
+    );
+
+    const currentDesktopSidebarWidth = isDesktopSidebarExpanded ? expandedSidebarWidth : sidebarWidth;
+
     return (
-        <Box width="100%" minHeight="100vh" bgcolor="#dce9f7">
+        <Box width="100%" minHeight="100dvh" bgcolor={theme.palette.background.default}>
             <Box
                 component="a"
                 href="#main-content"
@@ -102,123 +368,104 @@ const Layout = () => {
                         height: "auto",
                         zIndex: 10,
                         px: 1,
-                        py: 0.5,
+                        py: 0.75,
                         borderRadius: 1,
-                        bgcolor: "#ffffff",
-                        color: "#0f172a",
-                        border: "1px solid #dbe6f3",
+                        bgcolor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.divider}`,
                     },
                 }}
             >
                 Skip to main content
             </Box>
-            <Box minHeight="100vh" display="flex">
-                <Box
-                    sx={{
-                        width: { xs: 76, md: 88 },
-                        background: "linear-gradient(180deg, #ffb400 0%, #f59e0b 42px, #375a9e 42px, #365b9c 100%)",
-                        color: "#ffffff",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        pt: 1,
-                        pb: 2,
-                        boxShadow: "2px 0 14px rgba(22, 52, 104, 0.08)",
-                        zIndex: 2,
+
+            {!isDesktop ? (
+                <Drawer
+                    open={isMobileNavOpen}
+                    onClose={handleCloseMobileNav}
+                    anchor="left"
+                    ModalProps={{ keepMounted: true }}
+                    PaperProps={{
+                        sx: {
+                            width: 250,
+                            maxWidth: "80vw",
+                            borderRight: "none",
+                            background: SIDEBAR_BACKGROUND,
+                            boxShadow: `0 24px 38px ${alpha("#091a38", 0.45)}`,
+                            color: "#fff",
+                            display: "flex",
+                            flexDirection: "column",
+                            overflow: "hidden",
+                            position: "relative",
+                            '&::before': {
+                                content: '""',
+                                position: "absolute",
+                                inset: 0,
+                                background: `radial-gradient(circle at 12% 4%, ${alpha("#ffffff", 0.2)} 0%, ${alpha("#ffffff", 0)} 38%)`,
+                                pointerEvents: "none",
+                            },
+                        },
                     }}
                 >
-                    <Box width="100%" px={1.25} pb={1.25}>
-                        <Box display="flex" alignItems="center" justifyContent="space-between">
-                            <Typography fontSize={10} fontWeight={800} lineHeight={1.1}>
-                                Course Campass
-                            </Typography>
-                            <IconButton size="small" sx={{ color: "#fff" }} aria-label="Toggle navigation menu">
-                                <MenuIcon sx={{ fontSize: 16 }} />
-                            </IconButton>
-                        </Box>
-                    </Box>
+                    {renderNavContent({ expanded: true, onToggle: handleCloseMobileNav })}
+                </Drawer>
+            ) : null}
 
-                    <Avatar
+            <Box minHeight="100dvh" display="flex">
+                {isDesktop ? (
+                    <Box
                         sx={{
-                            width: 38,
-                            height: 38,
-                            bgcolor: "#ffffff",
-                            color: "#365b9c",
-                            mb: 1.5,
-                            border: "2px solid rgba(255,255,255,0.8)",
+                            position: "relative",
+                            width: currentDesktopSidebarWidth,
+                            minWidth: currentDesktopSidebarWidth,
+                            transition: theme.transitions.create(["width", "min-width"], {
+                                duration: theme.transitions.duration.shorter,
+                            }),
+                            background: SIDEBAR_BACKGROUND,
+                            color: "#ffffff",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            pt: 1.25,
+                            pb: 1,
+                            boxShadow: `8px 0 24px ${alpha("#0f2957", 0.24)}`,
+                            zIndex: 2,
+                            top: 0,
+                            height: "100dvh",
+                            overflow: "hidden",
+                            borderRight: `1px solid ${alpha("#ffffff", 0.16)}`,
+                            '&::before': {
+                                content: '""',
+                                position: "absolute",
+                                inset: 0,
+                                background: `radial-gradient(circle at 16% 6%, ${alpha("#ffffff", 0.2)} 0%, ${alpha("#ffffff", 0)} 42%)`,
+                                pointerEvents: "none",
+                            },
+                            '&::after': {
+                                content: '""',
+                                position: "absolute",
+                                right: -80,
+                                bottom: -84,
+                                width: 186,
+                                height: 186,
+                                borderRadius: "50%",
+                                background: `radial-gradient(circle, ${alpha("#ffffff", 0.2)} 0%, ${alpha("#ffffff", 0)} 70%)`,
+                                pointerEvents: "none",
+                            },
                         }}
                     >
-                        CC
-                    </Avatar>
-
-                    <Stack spacing={0.6} width="100%" px={0.75}>
-                        {computedNavItems.map((section) => (
-                            <Box key={section.key}>
-                                <Typography
-                                    sx={{
-                                        display: { xs: "none", md: "block" },
-                                        px: 1.1,
-                                        py: 0.6,
-                                        fontSize: 10,
-                                        fontWeight: 700,
-                                        letterSpacing: "0.04em",
-                                        textTransform: "uppercase",
-                                        color: "rgba(248, 251, 255, 0.85)",
-                                    }}
-                                >
-                                    {section.title}
-                                </Typography>
-
-                                <Stack spacing={0.4}>
-                                    {section.items.map((item) => {
-                                        const Icon = item.icon;
-
-                                        return (
-                                            <Tooltip title={item.label} placement="right" key={item.label}>
-                                                <NavLink to={item.path} style={{ textDecoration: "none" }} aria-label={item.label}>
-                                                    {({ isActive }) => (
-                                                        <Box
-                                                            sx={{
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                gap: 1,
-                                                                py: 1.1,
-                                                                px: 1.1,
-                                                                borderRadius: 2,
-                                                                backgroundColor: isActive ? "rgba(255,255,255,0.14)" : "transparent",
-                                                                color: "#f8fbff",
-                                                                cursor: "pointer",
-                                                                '&:hover': {
-                                                                    backgroundColor: "rgba(255,255,255,0.12)",
-                                                                },
-                                                            }}
-                                                        >
-                                                            <Icon sx={{ fontSize: 16 }} />
-                                                            <Typography
-                                                                sx={{
-                                                                    display: { xs: "none", md: "block" },
-                                                                    fontSize: 12,
-                                                                    fontWeight: isActive ? 700 : 500,
-                                                                    whiteSpace: "nowrap",
-                                                                }}
-                                                            >
-                                                                {item.label}
-                                                            </Typography>
-                                                        </Box>
-                                                    )}
-                                                </NavLink>
-                                            </Tooltip>
-                                        );
-                                    })}
-                                </Stack>
-                            </Box>
-                        ))}
-                    </Stack>
-                </Box>
+                        {renderNavContent({ expanded: isDesktopSidebarExpanded, onToggle: handleToggleDesktopSidebar })}
+                    </Box>
+                ) : null}
 
                 <Box flex={1} minWidth={0}>
-                    <Navbar />
-                    <Box component="main" id="main-content" px={{ xs: 1.25, md: 2 }} py={{ xs: 1.25, md: 1.75 }}>
+                    <Navbar showMenuButton={!isDesktop} onMenuClick={handleOpenMobileNav} />
+                    <Box
+                        component="main"
+                        id="main-content"
+                        px={{ xs: 1.5, md: 2.5 }}
+                        py={{ xs: 1.5, md: 2 }}
+                    >
                         <Outlet />
                     </Box>
                 </Box>

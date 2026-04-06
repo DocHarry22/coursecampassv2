@@ -51,9 +51,10 @@ Target-state contract:
 
 - Currently identical effective access to admin and user (token-authenticated routes).
 
-## Admin Login Export
+## Login Exports
 
 - Full seed export (admin + superadmin): docs/operations/SEED_ADMIN_LOGINS_2026-04-05.csv
+- Basic user export (user role): docs/operations/SEED_BASIC_USER_LOGINS_2026-04-06.csv
 
 ## Notes
 

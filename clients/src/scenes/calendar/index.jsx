@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -14,6 +13,8 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../../config/apiClient";
 import PageLoadingState from "../../components/PageLoadingState";
+import RouteEmptyState from "../../components/RouteEmptyState";
+import RouteStatusBanners from "../../components/RouteStatusBanners";
 
 const initialEventForm = {
   title: "",
@@ -71,10 +72,12 @@ const CalendarPage = () => {
   const [formValue, setFormValue] = React.useState(initialEventForm);
   const [editingId, setEditingId] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
+  const [status, setStatus] = React.useState("");
   const [error, setError] = React.useState("");
 
   const loadEvents = React.useCallback(async () => {
     setLoading(true);
+    setStatus("");
     setError("");
 
     try {
@@ -115,6 +118,7 @@ const CalendarPage = () => {
     }
 
     if (editingId) {
+      setStatus("");
       setError("");
 
       try {
@@ -123,18 +127,21 @@ const CalendarPage = () => {
           previousValue.map((entry) => (entry.id === editingId ? normalizeEvent(updated) : entry))
         );
         resetForm();
+        setStatus("Calendar event updated.");
       } catch (requestError) {
         setError(requestError.message || "Unable to update calendar event.");
       }
       return;
     }
 
+    setStatus("");
     setError("");
 
     try {
       const created = await apiPost("/calendar", toEventPayload(formValue));
       setEvents((previousValue) => [...previousValue, normalizeEvent(created)]);
       resetForm();
+      setStatus("Calendar event created.");
     } catch (requestError) {
       setError(requestError.message || "Unable to create calendar event.");
     }
@@ -152,11 +159,13 @@ const CalendarPage = () => {
   };
 
   const removeEvent = async (id) => {
+    setStatus("");
     setError("");
 
     try {
       await apiDelete(`/calendar/${id}`);
       setEvents((previousValue) => previousValue.filter((entry) => entry.id !== id));
+      setStatus("Calendar event deleted.");
     } catch (requestError) {
       setError(requestError.message || "Unable to delete calendar event.");
     }
@@ -165,18 +174,18 @@ const CalendarPage = () => {
   return (
     <Stack spacing={1.5}>
       <Box>
-        <Typography variant="body2" color="#64748b" mb={0.5}>
+        <Typography variant="body2" color="text.secondary" mb={0.5}>
           Calendar CRUD
         </Typography>
       </Box>
 
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      <RouteStatusBanners success={status} error={error} />
 
       {loading ? <PageLoadingState rows={3} /> : null}
 
       {!loading ? (
       <>
-      <Card sx={{ border: "1px solid #dbe6f3", boxShadow: "none", borderRadius: 2.5 }}>
+      <Card>
         <CardContent>
           <Stack spacing={1} component="form" onSubmit={submitEvent}>
             <TextField
@@ -235,40 +244,52 @@ const CalendarPage = () => {
         </CardContent>
       </Card>
 
-      <Card sx={{ border: "1px solid #dbe6f3", boxShadow: "none", borderRadius: 2.5 }}>
+      <Card>
         <CardContent>
-          <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+          <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
             Event List ({sortedEvents.length})
           </Typography>
-          <Stack spacing={1}>
-            {sortedEvents.map((entry) => (
-              <Box key={entry.id} sx={{ border: "1px solid #e2e8f0", borderRadius: 2, p: 1.1, backgroundColor: "#fbfdff" }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-                  <Box>
-                    <Typography variant="body2" fontWeight={700} color="#0f172a">
-                      {entry.title}
-                    </Typography>
-                    <Typography variant="caption" color="#64748b">
-                      {entry.date} {entry.time ? `at ${entry.time}` : ""} | {entry.type}
-                    </Typography>
-                    {entry.notes ? (
-                      <Typography variant="caption" color="#475569" display="block" mt={0.5}>
-                        {entry.notes}
+          {sortedEvents.length ? (
+            <Stack spacing={1}>
+              {sortedEvents.map((entry) => (
+                <Box
+                  key={entry.id}
+                  sx={(theme) => ({
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 1.25,
+                    backgroundColor: theme.palette.background.alt,
+                  })}
+                >
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                    <Box>
+                      <Typography variant="body2" fontWeight={700} color="text.primary">
+                        {entry.title}
                       </Typography>
-                    ) : null}
-                  </Box>
-                  <Stack direction="row" spacing={0.5}>
-                    <IconButton size="small" onClick={() => editEvent(entry)} aria-label={`Edit event ${entry.title}`}>
-                      <EditOutlinedIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => removeEvent(entry.id)} aria-label={`Delete event ${entry.title}`}>
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
+                      <Typography variant="caption" color="text.secondary">
+                        {entry.date} {entry.time ? `at ${entry.time}` : ""} | {entry.type}
+                      </Typography>
+                      {entry.notes ? (
+                        <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                          {entry.notes}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                    <Stack direction="row" spacing={0.5}>
+                      <IconButton size="small" onClick={() => editEvent(entry)} aria-label={`Edit event ${entry.title}`}>
+                        <EditOutlinedIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" onClick={() => removeEvent(entry.id)} aria-label={`Delete event ${entry.title}`}>
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
                   </Stack>
-                </Stack>
-              </Box>
-            ))}
-          </Stack>
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <RouteEmptyState message="No calendar events are scheduled yet." />
+          )}
         </CardContent>
       </Card>
       </>

@@ -176,3 +176,105 @@ export const apiGetMany = async (requests) => {
 
   return Object.fromEntries(entries);
 };
+
+const normalizeBatchRequestError = (reason, fallbackPath = "") => {
+  const payload = reason?.payload;
+  const message =
+    payload?.error?.message ||
+    payload?.message ||
+    reason?.message ||
+    `Request failed${fallbackPath ? ` for ${fallbackPath}` : ""}.`;
+
+  return {
+    message,
+    status: Number.isFinite(reason?.status) ? reason.status : null,
+    path: reason?.path || fallbackPath,
+    payload,
+    raw: reason,
+  };
+};
+
+export const apiGetManySettled = async (requests, options = {}) => {
+  const requiredKeys = new Set(
+    Array.isArray(options?.requiredKeys)
+      ? options.requiredKeys.map((key) => String(key || "")).filter(Boolean)
+      : []
+  );
+
+  const fallbackData =
+    options?.fallbackData && typeof options.fallbackData === "object" ? options.fallbackData : {};
+
+  const settledResults = await Promise.allSettled(
+    requests.map((request) => apiGet(request.path, request.options))
+  );
+
+  const data = {};
+  const errors = {};
+  const results = {};
+  const failedKeys = [];
+  const requiredFailureKeys = [];
+  const optionalFailureKeys = [];
+
+  settledResults.forEach((result, index) => {
+    const request = requests[index] || {};
+    const key = request?.key;
+
+    if (!key) {
+      return;
+    }
+
+    const isRequired = Boolean(request.required) || requiredKeys.has(key);
+
+    if (result.status === "fulfilled") {
+      data[key] = result.value;
+      results[key] = {
+        key,
+        ok: true,
+        required: isRequired,
+        data: result.value,
+        error: null,
+      };
+      return;
+    }
+
+    const normalizedError = normalizeBatchRequestError(result.reason, request.path);
+    errors[key] = normalizedError;
+    results[key] = {
+      key,
+      ok: false,
+      required: isRequired,
+      data: null,
+      error: normalizedError,
+    };
+
+    if (Object.prototype.hasOwnProperty.call(fallbackData, key)) {
+      data[key] = fallbackData[key];
+    }
+
+    failedKeys.push(key);
+
+    if (isRequired) {
+      requiredFailureKeys.push(key);
+      return;
+    }
+
+    optionalFailureKeys.push(key);
+  });
+
+  return {
+    data,
+    errors,
+    results,
+    summary: {
+      total: requests.length,
+      successCount: requests.length - failedKeys.length,
+      failureCount: failedKeys.length,
+      failedKeys,
+      requiredFailureKeys,
+      optionalFailureKeys,
+      hasFailures: failedKeys.length > 0,
+      hasRequiredFailures: requiredFailureKeys.length > 0,
+      hasOptionalFailures: optionalFailureKeys.length > 0,
+    },
+  };
+};

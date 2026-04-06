@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -15,6 +14,8 @@ import {
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../../config/apiClient";
 import PageLoadingState from "../../components/PageLoadingState";
+import RouteEmptyState from "../../components/RouteEmptyState";
+import RouteStatusBanners from "../../components/RouteStatusBanners";
 
 const defaultTaskForm = {
   title: "",
@@ -46,10 +47,12 @@ const TodoManagementPage = () => {
   const [filter, setFilter] = React.useState("all");
   const [formValue, setFormValue] = React.useState(defaultTaskForm);
   const [loading, setLoading] = React.useState(true);
+  const [status, setStatus] = React.useState("");
   const [error, setError] = React.useState("");
 
   const loadTasks = React.useCallback(async () => {
     setLoading(true);
+    setStatus("");
     setError("");
 
     try {
@@ -74,6 +77,7 @@ const TodoManagementPage = () => {
       return;
     }
 
+    setStatus("");
     setError("");
 
     try {
@@ -86,12 +90,14 @@ const TodoManagementPage = () => {
 
       setTasks((previousValue) => [normalizeTask(created), ...previousValue]);
       setFormValue(defaultTaskForm);
+      setStatus("Task created.");
     } catch (requestError) {
       setError(requestError.message || "Unable to create task.");
     }
   };
 
   const updateTask = async (id, updates) => {
+    setStatus("");
     setError("");
 
     try {
@@ -110,17 +116,20 @@ const TodoManagementPage = () => {
       setTasks((previousValue) =>
         previousValue.map((entry) => (entry.id === id ? normalizeTask(updated) : entry))
       );
+      setStatus("Task updated.");
     } catch (requestError) {
       setError(requestError.message || "Unable to update task.");
     }
   };
 
   const removeTask = async (id) => {
+    setStatus("");
     setError("");
 
     try {
       await apiDelete(`/todos/${id}`);
       setTasks((previousValue) => previousValue.filter((entry) => entry.id !== id));
+      setStatus("Task deleted.");
     } catch (requestError) {
       setError(requestError.message || "Unable to delete task.");
     }
@@ -141,18 +150,18 @@ const TodoManagementPage = () => {
   return (
     <Stack spacing={1.5}>
       <Box>
-        <Typography variant="body2" color="#64748b" mb={0.5}>
+        <Typography variant="body2" color="text.secondary" mb={0.5}>
           To-do Management
         </Typography>
       </Box>
 
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      <RouteStatusBanners success={status} error={error} />
 
       {loading ? <PageLoadingState rows={3} /> : null}
 
       {!loading ? (
       <>
-      <Card sx={{ border: "1px solid #dbe6f3", boxShadow: "none", borderRadius: 2.5 }}>
+      <Card>
         <CardContent>
           <Stack spacing={1} component="form" onSubmit={createTask}>
             <TextField
@@ -200,36 +209,53 @@ const TodoManagementPage = () => {
         ))}
       </Stack>
 
-      <Card sx={{ border: "1px solid #dbe6f3", boxShadow: "none", borderRadius: 2.5 }}>
+      <Card>
         <CardContent>
-          <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+          <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
             Tasks ({visibleTasks.length})
           </Typography>
-          <Stack spacing={1}>
-            {visibleTasks.map((task) => (
-              <Box key={task.id} sx={{ border: "1px solid #e2e8f0", borderRadius: 2, p: 1, backgroundColor: "#fbfdff" }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-                  <Stack direction="row" alignItems="center" spacing={0.75}>
-                    <Checkbox
-                      checked={task.done}
-                      onChange={(event) => updateTask(task.id, { done: event.target.checked })}
-                    />
-                    <Box>
-                      <Typography variant="body2" fontWeight={700} color={task.done ? "#94a3b8" : "#0f172a"} sx={{ textDecoration: task.done ? "line-through" : "none" }}>
-                        {task.title}
-                      </Typography>
-                      <Typography variant="caption" color="#64748b">
-                        {task.dueDate ? `Due ${task.dueDate}` : "No due date"} | {task.priority}
-                      </Typography>
-                    </Box>
+          {visibleTasks.length ? (
+            <Stack spacing={1}>
+              {visibleTasks.map((task) => (
+                <Box
+                  key={task.id}
+                  sx={(theme) => ({
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 1.25,
+                    backgroundColor: theme.palette.background.alt,
+                  })}
+                >
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                    <Stack direction="row" alignItems="center" spacing={0.75}>
+                      <Checkbox
+                        checked={task.done}
+                        onChange={(event) => updateTask(task.id, { done: event.target.checked })}
+                      />
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          fontWeight={700}
+                          color={task.done ? "text.secondary" : "text.primary"}
+                          sx={{ textDecoration: task.done ? "line-through" : "none" }}
+                        >
+                          {task.title}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {task.dueDate ? `Due ${task.dueDate}` : "No due date"} | {task.priority}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <IconButton size="small" onClick={() => removeTask(task.id)} aria-label={`Delete task ${task.title}`}>
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
                   </Stack>
-                  <IconButton size="small" onClick={() => removeTask(task.id)} aria-label={`Delete task ${task.title}`}>
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
-                </Stack>
-              </Box>
-            ))}
-          </Stack>
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <RouteEmptyState message="No tasks match the selected filter." />
+          )}
         </CardContent>
       </Card>
       </>

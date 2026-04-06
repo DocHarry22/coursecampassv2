@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$Host,
+    [string]$ServerHost,
 
     [Parameter(Mandatory = $true)]
     [string]$Username,
@@ -79,7 +79,7 @@ function Publish-WithScp {
         $scpBaseArgs += @("-i", $KeyFile)
     }
 
-    $remoteTarget = "{0}@{1}:{2}/" -f $Username, $Host, $RemotePath.TrimEnd("/")
+    $remoteTarget = "{0}@{1}:{2}/" -f $Username, $ServerHost, $RemotePath.TrimEnd("/")
     $itemsToUpload = Get-ChildItem -Path $packageDir -Force
 
     foreach ($item in $itemsToUpload) {
@@ -107,7 +107,7 @@ function Publish-WithScp {
 function Publish-WithFtp {
     $plainTextPassword = Get-PlainTextPassword -ProvidedPassword $Password
     $normalizedRemotePath = "/" + $RemotePath.Trim().TrimStart("/").TrimEnd("/")
-    $baseUri = "{0}://{1}:{2}{3}" -f $Protocol, $Host, $Port, $normalizedRemotePath
+    $baseUri = "{0}://{1}:{2}{3}" -f $Protocol, $ServerHost, $Port, $normalizedRemotePath
     $auth = "{0}:{1}" -f $Username, $plainTextPassword
     $curlBaseArgs = @("--silent", "--show-error", "--user", $auth, "--ftp-create-dirs")
 
@@ -117,11 +117,11 @@ function Publish-WithFtp {
 
     function Invoke-CurlCommand {
         param(
-            [string[]]$Args,
+            [string[]]$CommandOptions,
             [switch]$IgnoreFailure
         )
 
-        $output = & curl.exe @Args 2>$null
+        $output = & curl.exe @CommandOptions 2>$null
         $exitCode = $LASTEXITCODE
 
         if ($exitCode -ne 0 -and -not $IgnoreFailure) {
@@ -134,8 +134,8 @@ function Publish-WithFtp {
     function Remove-RemoteFile {
         param([string]$RelativePath)
 
-        $deleteArgs = @($curlBaseArgs + @("-Q", "-DELE $RelativePath", "$baseUri/"))
-        Invoke-CurlCommand -Args $deleteArgs -IgnoreFailure | Out-Null
+        $deleteArgs = $curlBaseArgs + @("-Q", "-DELE $RelativePath", "$baseUri/")
+        Invoke-CurlCommand -CommandOptions $deleteArgs -IgnoreFailure | Out-Null
     }
 
     if ($CleanRemoteAssets) {
@@ -147,8 +147,8 @@ function Publish-WithFtp {
             Remove-RemoteFile -RelativePath $file.Name
         }
 
-        $assetsListArgs = @($curlBaseArgs + @("--list-only", "$baseUri/assets/"))
-        $remoteAssetFiles = Invoke-CurlCommand -Args $assetsListArgs -IgnoreFailure |
+        $assetsListArgs = $curlBaseArgs + @("--list-only", "$baseUri/assets/")
+        $remoteAssetFiles = Invoke-CurlCommand -CommandOptions $assetsListArgs -IgnoreFailure |
             Where-Object { $_ -and $_.Trim() } |
             ForEach-Object { $_.Trim() }
 
@@ -158,11 +158,12 @@ function Publish-WithFtp {
     }
 
     $filesToUpload = Get-ChildItem -Path $packageDir -File -Force -Recurse
+    $packageRoot = (Resolve-Path $packageDir).Path.TrimEnd('\')
 
     foreach ($file in $filesToUpload) {
-        $relativePath = [System.IO.Path]::GetRelativePath($packageDir, $file.FullName).Replace("\", "/")
+        $relativePath = $file.FullName.Substring($packageRoot.Length).TrimStart('\', '/').Replace('\', '/')
         $targetUri = "{0}/{1}" -f $baseUri, $relativePath
-        $curlArgs = @($curlBaseArgs + @("--upload-file", $file.FullName, $targetUri))
+        $curlArgs = $curlBaseArgs + @("--upload-file", $file.FullName, $targetUri)
 
         Write-Host "Uploading $relativePath to $targetUri"
         & curl.exe @curlArgs

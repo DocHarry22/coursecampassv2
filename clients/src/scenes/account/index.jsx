@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -15,7 +14,17 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useSession } from "../../auth/SessionContext";
-import { apiGet, apiPatch } from "../../config/apiClient";
+import { apiGetManySettled } from "../../config/apiClient";
+import RouteEmptyState from "../../components/RouteEmptyState";
+import RouteStatusBanners from "../../components/RouteStatusBanners";
+
+const formatFailureDetails = (keys, errors) =>
+  keys
+    .map((key) => {
+      const message = errors?.[key]?.message;
+      return message ? `${key}: ${message}` : key;
+    })
+    .join(" | ");
 
 const AccountSettingsPage = () => {
   const navigate = useNavigate();
@@ -23,6 +32,7 @@ const AccountSettingsPage = () => {
   const [saving, setSaving] = React.useState(false);
   const [status, setStatus] = React.useState("");
   const [error, setError] = React.useState("");
+  const [warning, setWarning] = React.useState("");
   const [health, setHealth] = React.useState(null);
   const [loadingHealth, setLoadingHealth] = React.useState(true);
   const [loadingProfile, setLoadingProfile] = React.useState(true);
@@ -38,14 +48,21 @@ const AccountSettingsPage = () => {
     const loadPageData = async () => {
       setLoadingProfile(true);
       setLoadingHealth(true);
+      setError("");
+      setWarning("");
 
       try {
-        const [profileResponse, healthResponse] = await Promise.all([
-          apiGet("/account/profile"),
-          apiGet("/general/health"),
+        const { data, errors, summary } = await apiGetManySettled([
+          { key: "profile", path: "/account/profile", required: true },
+          { key: "health", path: "/general/health" },
         ]);
 
-        const user = profileResponse?.user || null;
+        if (summary.hasRequiredFailures || !data.profile) {
+          const detailText = formatFailureDetails(summary.requiredFailureKeys, errors);
+          throw new Error(`Unable to load account profile (${detailText}).`);
+        }
+
+        const user = data.profile?.user || null;
 
         if (user) {
           setFormValue((previous) => ({
@@ -55,8 +72,14 @@ const AccountSettingsPage = () => {
           }));
         }
 
-        setHealth(healthResponse);
-      } catch (_requestError) {
+        setHealth(data.health || null);
+
+        if (summary.hasOptionalFailures) {
+          const detailText = formatFailureDetails(summary.optionalFailureKeys, errors);
+          setWarning(`Some account telemetry is temporarily unavailable (${detailText}).`);
+        }
+      } catch (requestError) {
+        setError(requestError.message || "Unable to load account profile.");
         setHealth(null);
       } finally {
         setLoadingProfile(false);
@@ -74,12 +97,7 @@ const AccountSettingsPage = () => {
     setStatus("");
 
     try {
-      await apiPatch("/account/profile", {
-        name: formValue.name,
-        email: formValue.email,
-      });
-
-      updateSessionProfile({
+      await updateSessionProfile({
         name: formValue.name,
         email: formValue.email,
         preferences: {
@@ -104,22 +122,21 @@ const AccountSettingsPage = () => {
   return (
     <Stack spacing={1.5}>
       <Box>
-        <Typography variant="body2" color="#64748b" mb={0.5}>
+        <Typography variant="body2" color="text.secondary" mb={0.5}>
           Account Settings
         </Typography>
       </Box>
 
-      {status ? <Alert severity="success">{status}</Alert> : null}
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      <RouteStatusBanners success={status} error={error} warning={warning} />
 
-      <Grid container spacing={1.25}>
+      <Grid container spacing={1.5}>
         <Grid item xs={12} lg={7}>
-          <Card sx={{ border: "1px solid #dbe6f3", boxShadow: "none", borderRadius: 2.5 }}>
+          <Card>
             <CardContent>
-              <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+              <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
                 Profile and Preferences
               </Typography>
-              <Stack spacing={1.1} component="form" onSubmit={saveSettings}>
+              <Stack spacing={1.25} component="form" onSubmit={saveSettings}>
                 <TextField
                   label="Full name"
                   value={formValue.name}
@@ -161,7 +178,7 @@ const AccountSettingsPage = () => {
                   </Button>
                 </Stack>
                 {loadingProfile ? (
-                  <Typography variant="caption" color="#64748b">
+                  <Typography variant="caption" color="text.secondary">
                     Loading account profile...
                   </Typography>
                 ) : null}
@@ -171,33 +188,35 @@ const AccountSettingsPage = () => {
         </Grid>
 
         <Grid item xs={12} lg={5}>
-          <Card sx={{ border: "1px solid #dbe6f3", boxShadow: "none", borderRadius: 2.5 }}>
+          <Card>
             <CardContent>
-              <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+              <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
                 Session Summary
               </Typography>
-              <Typography variant="body2" color="#475569">ID: {session?.id || "n/a"}</Typography>
-              <Typography variant="body2" color="#475569">Role: {session?.role || "n/a"}</Typography>
-              <Typography variant="body2" color="#475569">Logged in at: {session?.loggedInAt || "n/a"}</Typography>
+              <Typography variant="body2" color="text.secondary">ID: {session?.id || "n/a"}</Typography>
+              <Typography variant="body2" color="text.secondary">Role: {session?.role || "n/a"}</Typography>
+              <Typography variant="body2" color="text.secondary">Logged in at: {session?.loggedInAt || "n/a"}</Typography>
 
               <Box mt={1.5}>
-                <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={0.8}>
+                <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={0.8}>
                   System Health
                 </Typography>
                 {loadingHealth ? (
                   <CircularProgress size={18} />
-                ) : (
+                ) : health ? (
                   <>
-                    <Typography variant="body2" color="#475569">
+                    <Typography variant="body2" color="text.secondary">
                       Status: {health?.status || "unknown"}
                     </Typography>
-                    <Typography variant="body2" color="#475569">
+                    <Typography variant="body2" color="text.secondary">
                       Database: {health?.dbStatus || "unknown"}
                     </Typography>
-                    <Typography variant="body2" color="#475569">
+                    <Typography variant="body2" color="text.secondary">
                       Environment: {health?.environment || "unknown"}
                     </Typography>
                   </>
+                ) : (
+                  <RouteEmptyState message="System health is currently unavailable." />
                 )}
               </Box>
             </CardContent>

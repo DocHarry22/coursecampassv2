@@ -1,7 +1,9 @@
 import React from "react";
-import { Alert, Box, Card, CardContent, Stack, Typography } from "@mui/material";
-import { apiGetMany } from "../../config/apiClient";
+import { Box, Card, CardContent, Stack, Typography } from "@mui/material";
+import { apiGetManySettled } from "../../config/apiClient";
 import PageLoadingState from "../../components/PageLoadingState";
+import RouteEmptyState from "../../components/RouteEmptyState";
+import RouteStatusBanners from "../../components/RouteStatusBanners";
 
 const formatValue = (value) => {
   if (typeof value === "number") {
@@ -41,9 +43,18 @@ const toSummaryCards = (responses) =>
     };
   });
 
+const formatFailureDetails = (keys, errors) =>
+  keys
+    .map((key) => {
+      const message = errors?.[key]?.message;
+      return message ? `${key}: ${message}` : key;
+    })
+    .join(" | ");
+
 const DestinationScene = ({ title, subtitle, requests = [] }) => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
+  const [warning, setWarning] = React.useState("");
   const [cards, setCards] = React.useState([]);
 
   React.useEffect(() => {
@@ -52,15 +63,28 @@ const DestinationScene = ({ title, subtitle, requests = [] }) => {
     const loadData = async () => {
       setLoading(true);
       setError("");
+      setWarning("");
 
       try {
-        const responses = await apiGetMany(requests);
+        const { data, errors, summary } = await apiGetManySettled(requests);
 
         if (!isMounted) {
           return;
         }
 
-        setCards(toSummaryCards(responses));
+        const nextCards = toSummaryCards(data);
+
+        if (!nextCards.length && summary.hasFailures) {
+          const detailText = formatFailureDetails(summary.failedKeys, errors);
+          throw new Error(`Unable to load route data (${detailText}).`);
+        }
+
+        setCards(nextCards);
+
+        if (summary.hasFailures) {
+          const detailText = formatFailureDetails(summary.failedKeys, errors);
+          setWarning(`Some route data is temporarily unavailable (${detailText}).`);
+        }
       } catch (requestError) {
         if (!isMounted) {
           return;
@@ -84,30 +108,38 @@ const DestinationScene = ({ title, subtitle, requests = [] }) => {
   return (
     <Stack spacing={1.5}>
       <Box>
-        <Typography variant="body2" color="#64748b" mb={0.5}>
+        <Typography variant="body2" color="text.secondary" mb={0.5}>
           {title}
         </Typography>
-        <Typography variant="caption" color="#94a3b8">
+        <Typography variant="caption" color="text.secondary">
           {subtitle}
         </Typography>
       </Box>
 
-      {error ? <Alert severity="error">{error}</Alert> : null}
+      <RouteStatusBanners error={error} warning={warning} />
 
       {loading ? <PageLoadingState rows={2} /> : null}
 
-      {!loading ? (
-        <Box display="grid" gridTemplateColumns={{ xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }} gap={1.5}>
+      {!loading && !cards.length && !error ? (
+        <RouteEmptyState message="No route data is available for this section yet." />
+      ) : null}
+
+      {!loading && cards.length ? (
+        <Box
+          display="grid"
+          gridTemplateColumns={{ xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }}
+          gap={1.5}
+        >
           {cards.map((card) => (
-            <Card key={card.key} sx={{ backgroundImage: "none", boxShadow: "none", border: "1px solid #dbe6f3", borderRadius: 2.5 }}>
+            <Card key={card.key}>
               <CardContent>
-                <Typography variant="caption" color="#64748b" fontWeight={700}>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>
                   {card.label}
                 </Typography>
-                <Typography variant="h4" color="#0f172a" fontWeight={800}>
+                <Typography variant="h4" color="text.primary" fontWeight={800}>
                   {card.value}
                 </Typography>
-                <Typography variant="body2" color="#475569">
+                <Typography variant="body2" color="text.secondary">
                   {card.note}
                 </Typography>
               </CardContent>

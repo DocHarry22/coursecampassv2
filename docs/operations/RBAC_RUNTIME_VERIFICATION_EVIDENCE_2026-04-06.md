@@ -109,3 +109,100 @@ Step 11 verification is complete.
 - Enforced permissions match the RBAC contract in both runtime modes.
 - Governance endpoints behave as superadmin-only surfaces at runtime.
 - Fallback mode preserves authorization boundaries and contract shape while serving without DB connectivity.
+
+## Phase 5 Rollout Verification Update
+
+Status: Completed
+Date: 2026-04-06
+
+### Command Results
+
+Executed in this rollout gate:
+
+```powershell
+Set-Location "clients"
+npm test
+```
+
+Result:
+
+- Frontend smoke suite: 14 passed, 0 failed.
+- Includes role-flow normalization, role-home routing, capability guard redirects, interaction wiring, and responsive/feedback checks.
+
+```powershell
+Set-Location "clients"
+npm run build
+```
+
+Result:
+
+- Frontend production bundle built successfully (Vite build completed without errors).
+
+```powershell
+Set-Location "server"
+npm test
+```
+
+Result:
+
+- Backend contract/governance suite: 9 passed, 0 failed.
+
+```powershell
+Set-Location "server"
+$env:PORT="9010"
+node index.js
+
+# separate terminal
+Set-Location "server"
+$env:BASE_URL="http://127.0.0.1:9010"
+npm run test:rbac-live
+```
+
+Result summary:
+
+- unauthenticated `/general/metrics`: 401
+- user: learner read allowed, admin/superadmin surfaces blocked (403)
+- admin: operations read/write allowed where contracted, governance blocked (403)
+- superadmin: governance/metrics/override-delete surfaces allowed (200)
+
+### Responsive + A11y Matrix (User/Admin/Superadmin)
+
+Method:
+
+- Manual role-policy walkthrough against route wiring, guard/capability flow, and layout/nav behavior.
+- Verified against smoke assertions and current scene implementation for learner, admin, and superadmin critical routes.
+
+Viewport checkpoints:
+
+- Mobile: <= md (`xs` behavior)
+- Desktop: >= md
+
+| Role | Route surface check | Responsive behavior check | A11y check | Result |
+| --- | --- | --- | --- | --- |
+| user | `/dashboard` allowed; admin/superadmin dashboards redirected to role home by guard policy | Sidebar remains compact; section/item labels collapse on `xs`; content padding scales via responsive `px` | Skip link present; icon-only controls have labels; status/empty feedback components present on learner routes | Pass |
+| admin | `/admin/dashboard`, `/admin/operations`, `/search`, `/courses`, `/schools` allowed; governance/observability denied and redirected | Desktop search input visible at `md+`, hidden on `xs`; role sections appear by capability flags | Navbar and workflow controls expose descriptive `aria-label` values; destructive actions are named | Pass |
+| superadmin | `/superadmin/dashboard`, `/superadmin/governance`, `/superadmin/observability` allowed | Same responsive shell behavior as other roles; superadmin sections rendered by capability toggles | Sensitive actions require explicit confirmation and include descriptive action labels | Pass |
+
+### RBAC Contract Conformance Gate (RBAC_ROLE_CONTRACT_2026-04-06)
+
+Validated contract points:
+
+- Canonical role normalization:
+  - Unknown/missing roles normalize to `user`.
+  - Role-home paths map to `/dashboard`, `/admin/dashboard`, `/superadmin/dashboard`.
+- Deny-by-default role/capability routing:
+  - Unauthenticated requests redirect to `/login`.
+  - Authenticated but unauthorized role/capability attempts redirect to role home.
+- Endpoint policy enforcement:
+  - User cannot access admin/superadmin APIs (`403`).
+  - Admin cannot access superadmin-only governance/metrics/override scope (`403`).
+  - Superadmin can access governance and metrics scope (`200`).
+- Dashboard section contract:
+  - user: `learner` only.
+  - admin: `learner` + `operations`.
+  - superadmin: `learner` + `operations` + `governance`.
+
+Rollout decision:
+
+- Contract conformance: Pass.
+- Rollout gate: Approved.

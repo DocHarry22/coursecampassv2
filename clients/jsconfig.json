@@ -5,6 +5,7 @@
         "paths": {
             "state": ["src/state"],
             "theme": ["src/theme.js"],
+            "auth": ["src/auth"],
             "components": ["src/components"],
             "scenes": ["src/scenes"],
             "assets": ["src/assets"]

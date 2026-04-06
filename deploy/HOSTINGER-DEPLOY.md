@@ -29,7 +29,7 @@ If you have Hostinger FTP access, use the publish script to rebuild and upload i
 
 ```powershell
 Set-Location .\deploy
-.\Publish-HostingerFrontend.ps1 -Protocol "ftp" -Host "ftp.docheng.co.za" -Username "u836398163.Admin" -RemotePath "/home/u836398163/domains/docheng.co.za/public_html/desk" -ApiUrl "https://api.your-domain.example" -CleanRemoteAssets
+.\Publish-HostingerFrontend.ps1 -Protocol "ftp" -ServerHost "ftp.docheng.co.za" -Username "u836398163.Admin" -RemotePath "/home/u836398163/domains/docheng.co.za/public_html/desk" -ApiUrl "https://api.your-domain.example" -CleanRemoteAssets
 ```
 
 Notes:

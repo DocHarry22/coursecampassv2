@@ -58,82 +58,164 @@ export const tokensDark = {
     return reversedTokens;
   }
   export const tokensLight = reverseTokens(tokensDark);
+
+  const baseFontFamily = ["Inter", "Segoe UI", "sans-serif"].join(",");
   
   // mui theme settings
   export const themeSettings = (mode) => {
+      const isDark = mode === "dark";
+
+      const palette = isDark
+        ? {
+            // palette values for dark mode
+            primary: {
+              ...tokensDark.primary,
+              main: tokensDark.primary[300],
+              light: tokensDark.primary[200],
+              dark: tokensDark.primary[700],
+            },
+            secondary: {
+              ...tokensDark.secondary,
+              main: tokensDark.secondary[400],
+              light: tokensDark.secondary[300],
+              dark: tokensDark.secondary[700],
+            },
+            neutral: {
+              ...tokensDark.grey,
+              main: tokensDark.grey[400],
+              dark: tokensDark.grey[700],
+            },
+            text: {
+              primary: tokensDark.grey[0],
+              secondary: tokensDark.grey[200],
+            },
+            divider: tokensDark.primary[500],
+            background: {
+              default: tokensDark.primary[800],
+              paper: tokensDark.primary[700],
+              alt: tokensDark.primary[600],
+            },
+          }
+        : {
+            // palette values for light mode
+            primary: {
+              ...tokensLight.primary,
+              main: tokensDark.primary[500],
+              light: tokensDark.primary[300],
+              dark: tokensDark.primary[700],
+            },
+            secondary: {
+              ...tokensLight.secondary,
+              main: tokensDark.secondary[500],
+              light: tokensDark.secondary[300],
+              dark: tokensDark.secondary[700],
+            },
+            neutral: {
+              ...tokensLight.grey,
+              main: tokensDark.grey[500],
+              dark: tokensDark.grey[700],
+            },
+            text: {
+              primary: "#10233f",
+              secondary: "#4d6280",
+            },
+            divider: "#d7e2f0",
+            background: {
+              default: "#e7f0fb",
+              paper: tokensDark.grey[0],
+              alt: "#f5f9ff",
+            },
+          };
+
     return {
-      palette: {
-        mode: mode,
-        ...(mode === "dark"
-          ? {
-              // palette values for dark mode
-              primary: {
-                ...tokensDark.primary,
-                main: tokensDark.primary[400],
-                light: tokensDark.primary[400],
-              },
-              secondary: {
-                ...tokensDark.secondary,
-                main: tokensDark.secondary[300],
-              },
-              neutral: {
-                ...tokensDark.grey,
-                main: tokensDark.grey[500],
-              },
-              background: {
-                default: tokensDark.primary[600],
-                alt: tokensDark.primary[500],
-              },
-            }
-          : {
-              // palette values for light mode
-              primary: {
-                ...tokensLight.primary,
-                main: tokensDark.grey[50],
-                light: tokensDark.grey[100],
-              },
-              secondary: {
-                ...tokensLight.secondary,
-                main: tokensDark.secondary[600],
-                light: tokensDark.secondary[700],
-              },
-              neutral: {
-                ...tokensLight.grey,
-                main: tokensDark.grey[500],
-              },
-              background: {
-                default: tokensDark.grey[0],
-                alt: tokensDark.grey[50],
-              },
-            }),
-      },
+        palette: {
+          mode: mode,
+          ...palette,
+        },
+        shape: {
+          borderRadius: 12,
+        },
       typography: {
-        fontFamily: ["Inter", "sans-serif"].join(","),
-        fontSize: 12,
+          fontFamily: baseFontFamily,
+          fontSize: 14,
         h1: {
-          fontFamily: ["Inter", "sans-serif"].join(","),
+            fontFamily: baseFontFamily,
           fontSize: 40,
+            fontWeight: 800,
+            letterSpacing: "-0.02em",
         },
         h2: {
-          fontFamily: ["Inter", "sans-serif"].join(","),
+            fontFamily: baseFontFamily,
           fontSize: 32,
+            fontWeight: 800,
+            letterSpacing: "-0.02em",
         },
         h3: {
-          fontFamily: ["Inter", "sans-serif"].join(","),
+            fontFamily: baseFontFamily,
           fontSize: 24,
+            fontWeight: 700,
         },
         h4: {
-          fontFamily: ["Inter", "sans-serif"].join(","),
+            fontFamily: baseFontFamily,
           fontSize: 20,
+            fontWeight: 700,
         },
         h5: {
-          fontFamily: ["Inter", "sans-serif"].join(","),
+            fontFamily: baseFontFamily,
           fontSize: 16,
+            fontWeight: 700,
         },
         h6: {
-          fontFamily: ["Inter", "sans-serif"].join(","),
+            fontFamily: baseFontFamily,
           fontSize: 14,
+            fontWeight: 700,
+          },
+          body1: {
+            fontFamily: baseFontFamily,
+            fontSize: 14,
+            lineHeight: 1.55,
+          },
+          body2: {
+            fontFamily: baseFontFamily,
+            fontSize: 13,
+            lineHeight: 1.5,
+          },
+          caption: {
+            fontFamily: baseFontFamily,
+            fontSize: 12,
+            lineHeight: 1.4,
+            letterSpacing: "0.02em",
         },
       },
+        components: {
+          MuiCssBaseline: {
+            styleOverrides: {
+              body: {
+                backgroundColor: palette.background.default,
+                color: palette.text.primary,
+              },
+            },
+          },
+          MuiCard: {
+            styleOverrides: {
+              root: {
+                border: `1px solid ${palette.divider}`,
+                borderRadius: 14,
+                boxShadow: "none",
+                backgroundImage: "none",
+                backgroundColor: palette.background.paper,
+              },
+            },
+          },
+          MuiButton: {
+            styleOverrides: {
+              root: {
+                textTransform: "none",
+                fontWeight: 700,
+                borderRadius: 10,
+              },
+            },
+          },
+        },
     };
   };

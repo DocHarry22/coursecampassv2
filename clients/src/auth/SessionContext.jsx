@@ -42,7 +42,7 @@ const buildRoleCapabilities = (role) => {
     roleHomePath: getRoleHomePath(normalizedRole),
     canAccessDashboard: true,
     canAccessUserDashboard: normalizedRole === "user",
-    canAccessAdminDashboard: normalizedRole === "admin",
+    canAccessAdminDashboard: isAdminLike,
     canAccessSuperadminDashboard: normalizedRole === "superadmin",
     canAccessTools: true,
     canAccessFinancialAid: true,
@@ -161,78 +161,65 @@ export const SessionProvider = ({ children }) => {
     writeSession(null);
   }, []);
 
-  const updateSessionProfile = React.useCallback(async (updates) => {
+  const updateSessionProfile = React.useCallback(async (updates, options = {}) => {
+    if (!session) {
+      return null;
+    }
+
+    const shouldPersistRemote = options?.persistRemote !== false;
+    const serverPayload = {};
+
+    if (typeof updates?.name === "string") {
+      serverPayload.name = updates.name;
+    }
+
+    if (typeof updates?.email === "string") {
+      serverPayload.email = updates.email;
+    }
+
+    if (typeof updates?.country === "string") {
+      serverPayload.country = updates.country;
+    }
+
+    let profileFromServer = null;
+
+    if (shouldPersistRemote && Object.keys(serverPayload).length) {
+      const response = await apiPatch("/account/profile", serverPayload);
+      profileFromServer = response?.user || null;
+    }
+
+    let nextSessionSnapshot = null;
+
     setSession((previousSession) => {
       if (!previousSession) {
         return previousSession;
       }
 
-      const serverPayload = {};
-      if (typeof updates?.name === "string") {
-        serverPayload.name = updates.name;
-      }
-      if (typeof updates?.email === "string") {
-        serverPayload.email = updates.email;
-      }
-      if (typeof updates?.country === "string") {
-        serverPayload.country = updates.country;
-      }
+      const nextSession = createSessionFromProfile(
+        profileFromServer || {
+          _id: previousSession.id,
+          name: updates?.name ?? previousSession.name,
+          email: updates?.email ?? previousSession.email,
+          role: previousSession.role,
+          country: updates?.country ?? previousSession.country,
+        },
+        previousSession.remember,
+        previousSession.accessToken,
+        previousSession
+      );
 
-      const applyLocalMerge = (profileFromServer = null) => {
-        const nextSession = createSessionFromProfile(
-          profileFromServer || {
-            _id: previousSession.id,
-            name: updates?.name ?? previousSession.name,
-            email: updates?.email ?? previousSession.email,
-            role: previousSession.role,
-            country: updates?.country ?? previousSession.country,
-          },
-          previousSession.remember,
-          previousSession.accessToken,
-          previousSession
-        );
-
-        nextSession.preferences = {
-          ...previousSession.preferences,
-          ...(updates?.preferences || {}),
-        };
-
-        writeSession(nextSession);
-        return nextSession;
+      nextSession.preferences = {
+        ...previousSession.preferences,
+        ...(updates?.preferences || {}),
       };
 
-      if (Object.keys(serverPayload).length) {
-        apiPatch("/account/profile", serverPayload)
-          .then((response) => {
-            setSession((latestSession) => {
-              if (!latestSession) {
-                return latestSession;
-              }
-
-              const mergedSession = createSessionFromProfile(
-                response?.user || {},
-                latestSession.remember,
-                latestSession.accessToken,
-                latestSession
-              );
-
-              mergedSession.preferences = {
-                ...latestSession.preferences,
-                ...(updates?.preferences || {}),
-              };
-
-              writeSession(mergedSession);
-              return mergedSession;
-            });
-          })
-          .catch(() => {
-            // Preserve local UX continuity even when profile persistence fails.
-          });
-      }
-
-      return applyLocalMerge();
+      writeSession(nextSession);
+      nextSessionSnapshot = nextSession;
+      return nextSession;
     });
-  }, []);
+
+    return nextSessionSnapshot;
+  }, [session]);
 
   React.useEffect(() => {
     if (!session?.accessToken) {

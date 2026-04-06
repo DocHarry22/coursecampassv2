@@ -10,11 +10,13 @@ import {
   Stack,
   TextField,
   Typography,
+  useTheme,
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSession } from "../../auth/SessionContext";
 
 const Login = () => {
+  const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useSession();
@@ -42,15 +44,31 @@ const Login = () => {
   };
 
   return (
-    <Box minHeight="100vh" sx={{ background: "linear-gradient(135deg, #dce9f7 0%, #f8fbff 100%)" }} display="grid" placeItems="center" px={2}>
-      <Card sx={{ width: "100%", maxWidth: 460, borderRadius: 3, border: "1px solid #dbe6f3", boxShadow: "0 20px 40px rgba(15, 23, 42, 0.08)" }}>
+    <Box
+      minHeight="100dvh"
+      sx={{
+        background: `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.alt} 100%)`,
+      }}
+      display="grid"
+      placeItems="center"
+      px={2}
+    >
+      <Card
+        sx={{
+          width: "100%",
+          maxWidth: "min(460px, 100%)",
+          borderRadius: 3,
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: "0 20px 40px rgba(15, 23, 42, 0.08)",
+        }}
+      >
         <CardContent sx={{ p: 3 }}>
           <Stack spacing={2} component="form" onSubmit={handleSubmit}>
             <Box>
-              <Typography variant="h5" fontWeight={800} color="#0f172a" mb={0.5}>
+              <Typography variant="h5" fontWeight={800} color={theme.palette.text.primary} mb={0.5}>
                 Course Campass Sign In
               </Typography>
-              <Typography variant="body2" color="#64748b">
+              <Typography variant="body2" color={theme.palette.text.secondary}>
                 Session-enabled access to dashboard and planning modules.
               </Typography>
             </Box>
@@ -84,7 +102,7 @@ const Login = () => {
               {submitting ? "Signing in..." : "Sign in"}
             </Button>
 
-            <Typography variant="caption" color="#64748b">
+            <Typography variant="caption" color={theme.palette.text.secondary}>
               Use a valid seeded user email and password from the backend dataset to start an authenticated session.
             </Typography>
           </Stack>

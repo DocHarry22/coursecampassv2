@@ -50,36 +50,44 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
   const observability = viewModel.superadminData.observability?.observability || null;
   const auditEvents = viewModel.superadminData.auditEvents || [];
 
-  const runAction = async (actionKey, action) => {
+  const runAction = async (actionKey, action, successMessage = "Action completed.") => {
     setBusyAction(actionKey);
     setError("");
     setStatus("");
 
     try {
       await action();
-      setStatus("Action completed.");
+      setStatus(successMessage);
       await onRefresh();
     } catch (requestError) {
-      setError(requestError.message || "Action failed.");
+      setError(requestError?.payload?.message || requestError.message || "Action failed.");
     } finally {
       setBusyAction("");
     }
   };
 
+  const confirmAndRun = ({ actionKey, confirmationMessage, action, successMessage }) => {
+    if (typeof window !== "undefined" && !window.confirm(confirmationMessage)) {
+      return;
+    }
+
+    runAction(actionKey, action, successMessage);
+  };
+
   return (
-    <Stack spacing={1.25}>
+    <Stack spacing={1.5}>
       {status ? <Alert severity="success">{status}</Alert> : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
 
-      <Grid container spacing={1.25}>
+      <Grid container spacing={1.5}>
         <Grid item xs={12} lg={6}>
-          <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none", height: "100%" }}>
+          <Card sx={{ height: "100%" }}>
             <CardContent>
-              <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+              <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
                 Governance Controls
               </Typography>
 
-              <Typography variant="caption" color="#64748b">Update user role</Typography>
+              <Typography variant="caption" color="text.secondary">Update user role</Typography>
               <Stack direction={{ xs: "column", md: "row" }} spacing={1} mt={0.5}>
                 <TextField
                   fullWidth
@@ -104,18 +112,22 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
                   variant="contained"
                   disabled={!roleForm.userId || busyAction === "update-role"}
                   onClick={() =>
-                    runAction("update-role", () =>
+                    confirmAndRun({
+                      actionKey: "update-role",
+                      confirmationMessage: `Apply role ${roleForm.role} to user ${roleForm.userId}?`,
+                      action: () =>
                       apiPatch(`/admin/users/${roleForm.userId}/role`, {
                         role: roleForm.role,
-                      })
-                    )
+                      }),
+                      successMessage: `Role updated for user ${roleForm.userId}.`,
+                    })
                   }
                 >
                   Apply
                 </Button>
               </Stack>
 
-              <Typography variant="caption" color="#64748b" display="block" mt={1.25}>Update account status</Typography>
+              <Typography variant="caption" color="text.secondary" display="block" mt={1.25}>Update account status</Typography>
               <Stack direction={{ xs: "column", md: "row" }} spacing={1} mt={0.5}>
                 <TextField
                   fullWidth
@@ -149,12 +161,16 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
                   variant="outlined"
                   disabled={!statusForm.userId || busyAction === "update-status"}
                   onClick={() =>
-                    runAction("update-status", () =>
+                    confirmAndRun({
+                      actionKey: "update-status",
+                      confirmationMessage: `Update account status for user ${statusForm.userId} to ${statusForm.accountStatus}?`,
+                      action: () =>
                       apiPatch(`/admin/users/${statusForm.userId}/status`, {
                         accountStatus: statusForm.accountStatus,
                         reason: statusForm.reason,
-                      })
-                    )
+                      }),
+                      successMessage: `Account status updated for user ${statusForm.userId}.`,
+                    })
                   }
                 >
                   Apply
@@ -165,22 +181,22 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
         </Grid>
 
         <Grid item xs={12} lg={6}>
-          <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none", height: "100%" }}>
+          <Card sx={{ height: "100%" }}>
             <CardContent>
-              <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+              <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
                 Observability and Security Actions
               </Typography>
 
               <Stack spacing={0.5} mb={1.2}>
                 {viewModel.governanceRows.map((kpi) => (
-                  <Typography key={kpi.key} variant="body2" color="#334155">
+                  <Typography key={kpi.key} variant="body2" color="text.primary">
                     {kpi.label}: <strong>{formatKpiValue(kpi)}</strong>
                   </Typography>
                 ))}
-                <Typography variant="body2" color="#334155">
+                <Typography variant="body2" color="text.primary">
                   Slow requests: <strong>{toNumber(observability?.slowRequestsTotal).toLocaleString()}</strong>
                 </Typography>
-                <Typography variant="body2" color="#334155">
+                <Typography variant="body2" color="text.primary">
                   Last request at: <strong>{observability?.lastRequestAt || "n/a"}</strong>
                 </Typography>
               </Stack>
@@ -190,7 +206,14 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
                   color="warning"
                   variant="outlined"
                   disabled={busyAction === "revoke-all"}
-                  onClick={() => runAction("revoke-all", () => apiPost("/admin/sessions/revoke-all", {}))}
+                  onClick={() =>
+                    confirmAndRun({
+                      actionKey: "revoke-all",
+                      confirmationMessage: "Revoke all active sessions across all users? This action is disruptive.",
+                      action: () => apiPost("/admin/sessions/revoke-all", {}),
+                      successMessage: "All user sessions were revoked.",
+                    })
+                  }
                 >
                   Revoke All Sessions
                 </Button>
@@ -204,7 +227,14 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
                   color="warning"
                   variant="contained"
                   disabled={!revokeUserId || busyAction === "revoke-user"}
-                  onClick={() => runAction("revoke-user", () => apiPost(`/admin/users/${revokeUserId}/revoke-sessions`, {}))}
+                  onClick={() =>
+                    confirmAndRun({
+                      actionKey: "revoke-user",
+                      confirmationMessage: `Revoke all sessions for user ${revokeUserId}?`,
+                      action: () => apiPost(`/admin/users/${revokeUserId}/revoke-sessions`, {}),
+                      successMessage: `Sessions revoked for user ${revokeUserId}.`,
+                    })
+                  }
                 >
                   Revoke User Sessions
                 </Button>
@@ -214,9 +244,9 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
         </Grid>
 
         <Grid item xs={12}>
-          <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none" }}>
+          <Card>
             <CardContent>
-              <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1.25}>
+              <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1.25}>
                 Override Tools
               </Typography>
               <Stack spacing={1}>
@@ -232,7 +262,14 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
                     color="error"
                     variant="outlined"
                     disabled={!overrideForm.courseId || busyAction === "delete-course"}
-                    onClick={() => runAction("delete-course", () => apiDelete(`/courses/${overrideForm.courseId}`))}
+                    onClick={() =>
+                      confirmAndRun({
+                        actionKey: "delete-course",
+                        confirmationMessage: `Delete course ${overrideForm.courseId}? This action cannot be undone.`,
+                        action: () => apiDelete(`/courses/${overrideForm.courseId}`),
+                        successMessage: `Course ${overrideForm.courseId} deleted.`,
+                      })
+                    }
                   >
                     Delete Course
                   </Button>
@@ -250,7 +287,14 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
                     color="error"
                     variant="outlined"
                     disabled={!overrideForm.schoolId || busyAction === "delete-school"}
-                    onClick={() => runAction("delete-school", () => apiDelete(`/schools/${overrideForm.schoolId}`))}
+                    onClick={() =>
+                      confirmAndRun({
+                        actionKey: "delete-school",
+                        confirmationMessage: `Delete school ${overrideForm.schoolId}? This action cannot be undone.`,
+                        action: () => apiDelete(`/schools/${overrideForm.schoolId}`),
+                        successMessage: `School ${overrideForm.schoolId} deleted.`,
+                      })
+                    }
                   >
                     Delete School
                   </Button>
@@ -261,9 +305,9 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
         </Grid>
 
         <Grid item xs={12}>
-          <Card sx={{ border: "1px solid #dbe6f3", borderRadius: 2.5, boxShadow: "none" }}>
+          <Card>
             <CardContent>
-              <Typography variant="subtitle2" fontWeight={700} color="#334155" mb={1}>
+              <Typography variant="subtitle2" fontWeight={700} color="text.primary" mb={1}>
                 Latest Audit Events
               </Typography>
               {auditEvents.length ? (
@@ -271,8 +315,8 @@ const SuperadminDashboard = ({ viewModel, onRefresh }) => {
                   {auditEvents.slice(0, 8).map((event) => (
                     <ListItem key={event.id || `${event.action}-${event.occurredAt}`} disableGutters divider>
                       <ListItemText
-                        primaryTypographyProps={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}
-                        secondaryTypographyProps={{ fontSize: 12, color: "#64748b" }}
+                        primaryTypographyProps={{ fontSize: 13, fontWeight: 700, color: "text.primary" }}
+                        secondaryTypographyProps={{ fontSize: 12, color: "text.secondary" }}
                         primary={event.action || "action"}
                         secondary={`${event.actorUserId || "actor:n/a"} | ${event.targetUserId || "target:n/a"} | ${event.occurredAt || "time:n/a"}`}
                       />

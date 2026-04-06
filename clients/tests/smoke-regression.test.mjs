@@ -40,7 +40,7 @@ test("role-aware dashboard entry points are present", async () => {
   assert.match(appSource, /path="\/admin\/dashboard"/);
   assert.match(appSource, /path="\/superadmin\/dashboard"/);
   assert.match(appSource, /RequireRoles\s+allowedRoles=\{\["user"\]\}/);
-  assert.match(appSource, /RequireRoles\s+allowedRoles=\{\["admin"\]\}/);
+  assert.match(appSource, /RequireRoles\s+allowedRoles=\{\["admin", "superadmin"\]\}/);
   assert.match(appSource, /RequireRoles\s+allowedRoles=\{\["superadmin"\]\}/);
   assert.match(appSource, /path="\/admin\/operations"/);
   assert.match(appSource, /path="\/superadmin\/governance"/);
@@ -137,4 +137,84 @@ test("high-risk action buttons expose descriptive aria labels", async () => {
   assert.match(calendarSource, /aria-label=\{`Edit event \$\{entry\.title\}`\}/);
   assert.match(calendarSource, /aria-label=\{`Delete event \$\{entry\.title\}`\}/);
   assert.match(aidSource, /aria-label=\{`Delete aid application \$\{entry\.provider\}`\}/);
+});
+
+test("role-flow helpers enforce canonical normalization and dashboard routing", async () => {
+  const sessionSource = await read("src/auth/SessionContext.jsx");
+
+  assert.match(sessionSource, /const CANONICAL_ROLES = \["user", "admin", "superadmin"\]/);
+  assert.match(sessionSource, /return CANONICAL_ROLES\.includes\(normalized\) \? normalized : "user"/);
+  assert.match(sessionSource, /if \(normalizedRole === "superadmin"\) \{\s*return "\/superadmin\/dashboard";/);
+  assert.match(sessionSource, /if \(normalizedRole === "admin"\) \{\s*return "\/admin\/dashboard";/);
+  assert.match(sessionSource, /return "\/dashboard";/);
+  assert.match(sessionSource, /canAccessAdminOperations: isAdminLike/);
+  assert.match(sessionSource, /canAccessGovernance: isSuperadmin/);
+  assert.match(sessionSource, /canAccessObservability: isSuperadmin/);
+});
+
+test("route guards encode authenticated role and capability flow behavior", async () => {
+  const guardsSource = await read("src/components/RouteGuards.jsx");
+
+  assert.match(guardsSource, /if \(!isAuthenticated\) \{\s*return <Navigate to="\/login" replace state=\{\{ from: location\.pathname \}\} \/>;/);
+  assert.match(guardsSource, /if \(!normalizedAllowedRoles\.includes\(role\)\) \{\s*return <Navigate to=\{roleHomePath\} replace \/>;/);
+  assert.match(guardsSource, /if \(!capability \|\| !capabilities\?\.\[capability\]\) \{\s*return <Navigate to=\{roleHomePath\} replace \/>;/);
+});
+
+test("interaction wiring covers search url sync account updates and superadmin confirmations", async () => {
+  const searchSource = await read("src/scenes/search/index.jsx");
+  const accountSource = await read("src/scenes/account/index.jsx");
+  const sessionSource = await read("src/auth/SessionContext.jsx");
+  const superadminSource = await read("src/scenes/dashboard/SuperadminDashboard.jsx");
+
+  assert.match(searchSource, /useSearchParams/);
+  assert.match(searchSource, /setSearchParams\(nextParams, \{ replace: true \}\)/);
+  assert.match(searchSource, /runSearch\(\{ nextQuery: normalizedQuery, nextScope: normalizedScope \}\)/);
+
+  assert.match(accountSource, /await updateSessionProfile\(\{/);
+  assert.doesNotMatch(accountSource, /apiPatch\("\/account\/profile"/);
+  assert.match(sessionSource, /const response = await apiPatch\("\/account\/profile", serverPayload\)/);
+
+  assert.match(superadminSource, /const confirmAndRun = \(\{ actionKey, confirmationMessage, action, successMessage \}\) => \{/);
+  assert.match(superadminSource, /window\.confirm\(confirmationMessage\)/);
+  assert.match(superadminSource, /This action cannot be undone\./);
+  assert.match(superadminSource, /Revoke all active sessions across all users\?/);
+});
+
+test("responsive and feedback patterns are standardized on role-critical routes", async () => {
+  const layoutSource = await read("src/scenes/layout/index.jsx");
+  const navbarSource = await read("src/components/Navbar.jsx");
+  const dashboardSource = await read("src/scenes/dashboard/index.jsx");
+  const coursesSource = await read("src/scenes/courses/index.jsx");
+  const schoolsSource = await read("src/scenes/schools/index.jsx");
+  const aidSource = await read("src/scenes/financialAid/index.jsx");
+  const todoSource = await read("src/scenes/todo/index.jsx");
+  const calendarSource = await read("src/scenes/calendar/index.jsx");
+  const searchSource = await read("src/scenes/search/index.jsx");
+  const accountSource = await read("src/scenes/account/index.jsx");
+
+  assert.match(layoutSource, /const sidebarWidth = \{ xs: 78, md: 92 \}/);
+  assert.match(layoutSource, /px=\{\{ xs: 1\.5, md: 2\.5 \}\}/);
+  assert.match(navbarSource, /display: \{ xs: "none", md: "flex" \}/);
+  assert.match(navbarSource, /inputProps=\{\{ "aria-label": "Search courses and schools" \}\}/);
+
+  const pageSkeletonScenes = [
+    dashboardSource,
+    coursesSource,
+    schoolsSource,
+    aidSource,
+    todoSource,
+    calendarSource,
+    searchSource,
+  ];
+
+  pageSkeletonScenes.forEach((source) => {
+    assert.match(source, /PageLoadingState/);
+    assert.match(source, /RouteStatusBanners/);
+    assert.match(source, /RouteEmptyState/);
+  });
+
+  assert.match(accountSource, /RouteStatusBanners/);
+  assert.match(accountSource, /RouteEmptyState/);
+  assert.match(accountSource, /loadingProfile/);
+  assert.match(accountSource, /loadingHealth/);
 });

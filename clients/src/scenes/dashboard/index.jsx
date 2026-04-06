@@ -1,8 +1,10 @@
 import React from "react";
-import { Alert, Box, Stack, Typography } from "@mui/material";
-import { apiGetMany } from "../../config/apiClient";
+import { Box, Stack, Typography } from "@mui/material";
+import { apiGetManySettled } from "../../config/apiClient";
 import { useSession } from "../../auth/SessionContext";
 import PageLoadingState from "../../components/PageLoadingState";
+import RouteEmptyState from "../../components/RouteEmptyState";
+import RouteStatusBanners from "../../components/RouteStatusBanners";
 import UserDashboard from "./UserDashboard";
 import AdminDashboard from "./AdminDashboard";
 import SuperadminDashboard from "./SuperadminDashboard";
@@ -35,20 +37,44 @@ const buildDashboardViewModel = ({ role, response }) => {
   };
 };
 
+const formatBatchFailureDetails = (keys, errors) =>
+  keys
+    .map((key) => {
+      const message = errors?.[key]?.message;
+      return message ? `${key}: ${message}` : key;
+    })
+    .join(" | ");
+
 const Dashboard = () => {
   const { role } = useSession();
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [viewModel, setViewModel] = React.useState(null);
+  const [partialWarning, setPartialWarning] = React.useState("");
+  const viewModelRef = React.useRef(null);
+
+  React.useEffect(() => {
+    viewModelRef.current = viewModel;
+  }, [viewModel]);
+
+  const formatLastUpdated = (timestamp) => {
+    if (!timestamp) {
+      return "n/a";
+    }
+
+    const parsed = new Date(timestamp);
+    return Number.isNaN(parsed.getTime()) ? "n/a" : parsed.toLocaleString();
+  };
 
   const loadDashboard = React.useCallback(async () => {
     setLoading(true);
     setError("");
+    setPartialWarning("");
 
     try {
       const requests = [
-        { key: "health", path: "/general/health" },
-        { key: "contract", path: "/general/dashboard-contract" },
+        { key: "health", path: "/general/health", required: true },
+        { key: "contract", path: "/general/dashboard-contract", required: true },
       ];
 
       if (role === "user") {
@@ -66,8 +92,34 @@ const Dashboard = () => {
         );
       }
 
-      const response = await apiGetMany(requests);
-      setViewModel(buildDashboardViewModel({ role, response }));
+      const { data, errors, summary } = await apiGetManySettled(requests);
+
+      if (summary.hasRequiredFailures) {
+        const requiredFailureDetails = formatBatchFailureDetails(summary.requiredFailureKeys, errors);
+        const hasCurrentRoleSnapshot = Boolean(
+          viewModelRef.current && viewModelRef.current.role === role
+        );
+
+        if (hasCurrentRoleSnapshot) {
+          setPartialWarning(
+            `Dashboard refresh is partially unavailable. Showing the last successful snapshot (${requiredFailureDetails}).`
+          );
+          return;
+        }
+
+        throw new Error(
+          `Unable to load the dashboard contract and health summary (${requiredFailureDetails}).`
+        );
+      }
+
+      setViewModel(buildDashboardViewModel({ role, response: data }));
+
+      if (summary.hasOptionalFailures) {
+        const optionalFailureDetails = formatBatchFailureDetails(summary.optionalFailureKeys, errors);
+        setPartialWarning(
+          `Some module data is temporarily unavailable (${optionalFailureDetails}).`
+        );
+      }
     } catch (requestError) {
       setError(requestError.message || "Unable to load dashboard data.");
     } finally {
@@ -82,19 +134,23 @@ const Dashboard = () => {
   return (
     <Stack spacing={1.5}>
       <Box>
-        <Typography variant="body2" color="#64748b" mb={0.5}>
+        <Typography variant="body2" color="text.secondary" mb={0.5}>
           Dashboard
         </Typography>
         {!loading && viewModel ? (
-          <Typography variant="caption" color="#94a3b8">
-            Role: {viewModel.role} | Contract: {viewModel.contractVersion}
+          <Typography variant="caption" color="text.secondary">
+            Role: {viewModel.role} | Contract: {viewModel.contractVersion} | Updated: {formatLastUpdated(viewModel.generatedAt)}
           </Typography>
         ) : null}
       </Box>
 
-      {error ? <Alert severity="error">{error}</Alert> : null}
+        <RouteStatusBanners error={error} warning={partialWarning} />
 
       {loading ? <PageLoadingState rows={4} /> : null}
+
+        {!loading && !viewModel && !error ? (
+          <RouteEmptyState message="No dashboard data was returned for this role." />
+        ) : null}
 
       {!loading && viewModel ? (
         role === "superadmin" ? (

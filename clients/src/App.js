@@ -25,6 +25,8 @@ const AidTrackingPage = lazy(() => import("scenes/financialAid"));
 const TodoManagementPage = lazy(() => import("scenes/todo"));
 const CalendarPage = lazy(() => import("scenes/calendar"));
 const AccountSettingsPage = lazy(() => import("scenes/account"));
+const GovernancePage = lazy(() => import("scenes/governance"));
+const ObservabilityPage = lazy(() => import("scenes/observability"));
 
 
 function App() {
@@ -51,7 +53,7 @@ function App() {
                       <Route path="/dashboard" element={<Dashboard />} />
                     </Route>
 
-                    <Route element={<RequireRoles allowedRoles={["admin"]} />}>
+                    <Route element={<RequireRoles allowedRoles={["admin", "superadmin"]} />}>
                       <Route path="/admin/dashboard" element={<Dashboard />} />
                     </Route>
 
@@ -102,17 +104,11 @@ function App() {
                     </Route>
 
                     <Route element={<RequireCapability capability="canAccessGovernance" />}>
-                      <Route
-                        path="/superadmin/governance"
-                        element={<DestinationScene title="Superadmin Governance" subtitle="User role, account status, and governance event overview." requests={[{ key: "users", path: "/admin/users?limit=20" }, { key: "auditEvents", path: "/admin/audit/events?limit=20" }]} />}
-                      />
+                      <Route path="/superadmin/governance" element={<GovernancePage />} />
                     </Route>
 
                     <Route element={<RequireCapability capability="canAccessObservability" />}>
-                      <Route
-                        path="/superadmin/observability"
-                        element={<DestinationScene title="Superadmin Observability" subtitle="Privileged runtime metrics and recent audit state." requests={[{ key: "observability", path: "/admin/observability/metrics" }, { key: "auditEvents", path: "/admin/audit/events?limit=10" }]} />}
-                      />
+                      <Route path="/superadmin/observability" element={<ObservabilityPage />} />
                     </Route>
                   </Route>
                 </Route>

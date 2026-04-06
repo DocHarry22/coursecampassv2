@@ -19,6 +19,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      auth: path.resolve(__dirname, "src/auth"),
       state: path.resolve(__dirname, "src/state"),
       theme: path.resolve(__dirname, "src/theme.js"),
       components: path.resolve(__dirname, "src/components"),
