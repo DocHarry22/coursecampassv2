@@ -13,6 +13,7 @@ import { getObservabilitySnapshot } from "../middleware/observability.js";
 import { getRuntimeCollection } from "../utils/runtimeStore.js";
 import { sendApiResponse } from "../utils/response.js";
 import { normalizeRole } from "../utils/userGovernance.js";
+import { getOrSetResponseCache } from "../utils/responseCache.js";
 
 const DASHBOARD_CONTRACT_VERSION = "2026-04-06.dashboard.v1";
 
@@ -311,7 +312,25 @@ export const getHealth = (req, res) => {
 	);
 };
 
-export const getSummary = (req, res) => {
+const getSummaryInventoryFromDatabase = async () => {
+	const [users, products, transactions, affiliateStats, overallStats] = await Promise.all([
+		User.countDocuments(),
+		Product.countDocuments(),
+		Transaction.countDocuments(),
+		AffiliateStat.countDocuments(),
+		OverallStat.countDocuments(),
+	]);
+
+	return {
+		users,
+		products,
+		transactions,
+		affiliateStats,
+		overallStats,
+	};
+};
+
+export const getSummary = async (req, res) => {
 	const dbStatus = req.app.locals.dbStatus ?? "unknown";
 
 	if (!isDatabaseConnected(req)) {
@@ -345,91 +364,88 @@ export const getSummary = (req, res) => {
 		return;
 	}
 
-	Promise.all([
-		User.countDocuments(),
-		Product.countDocuments(),
-		Transaction.countDocuments(),
-		AffiliateStat.countDocuments(),
-		OverallStat.countDocuments(),
-	])
-		.then(([users, products, transactions, affiliateStats, overallStats]) => {
-			sendApiResponse(
-				res,
-				200,
-				{
-					appName: "CourseCompass",
-					headline: "Academic operations dashboard",
-					dbStatus,
-					inventory: {
-						users,
-						products,
-						transactions,
-						affiliateStats,
-						overallStats,
-					},
-					modules: [
-						{
-							name: "Client",
-							path: "/client",
-							configured: true,
-						},
-						{
-							name: "General",
-							path: "/general",
-							configured: true,
-						},
-						{
-							name: "Management",
-							path: "/management",
-							configured: true,
-						},
-						{
-							name: "Sales",
-							path: "/sales",
-							configured: true,
-						},
-					],
-					recommendations: [
-						dbStatus !== "connected"
-							? "Restore MongoDB connectivity for data-backed routes."
-							: "Database connectivity is healthy.",
-						users === 0 ? "Run npm run seed in the server folder to load the sample dataset." : "Sample dataset is loaded and ready for UI wiring.",
-						"Add production build execution outside OneDrive-synced directories for reliability.",
-					],
-				},
-				{ source: "database" }
-			);
-		})
-		.catch((error) => {
-			const inventory = getFallbackInventory();
+	try {
+		const forceRefresh = ["1", "true", "yes"].includes(String(req.query?.refresh || "").toLowerCase());
+		const cacheKey = "general.summary.inventory";
+		const inventory = forceRefresh
+			? await getSummaryInventoryFromDatabase()
+			: (
+				await getOrSetResponseCache(req.app, cacheKey, getSummaryInventoryFromDatabase, {
+					ttlMs: process.env.GENERAL_SUMMARY_CACHE_MS,
+				})
+			).value;
+		const users = inventory?.users ?? 0;
 
-			sendApiResponse(
-				res,
-				200,
-				{
-					appName: "CourseCompass",
-					headline: "Academic operations dashboard",
-					dbStatus: "disconnected",
-					inventory,
-					modules: [
-						{ name: "Client", path: "/client", configured: true },
-						{ name: "General", path: "/general", configured: true },
-						{ name: "Management", path: "/management", configured: true },
-						{ name: "Sales", path: "/sales", configured: true },
-					],
-					recommendations: [
-						"MongoDB query failed, so the API fell back to the bundled dataset.",
-						"Atlas access can be restored by whitelisting the current IP address in MongoDB Atlas.",
-						"Add production build execution outside OneDrive-synced directories for reliability.",
-					],
-					message: error.message,
-				},
-				{
-					source: "fallback",
-					fallbackReason: "query_error",
-				}
-			);
-		});
+		sendApiResponse(
+			res,
+			200,
+			{
+				appName: "CourseCompass",
+				headline: "Academic operations dashboard",
+				dbStatus,
+				inventory,
+				modules: [
+					{
+						name: "Client",
+						path: "/client",
+						configured: true,
+					},
+					{
+						name: "General",
+						path: "/general",
+						configured: true,
+					},
+					{
+						name: "Management",
+						path: "/management",
+						configured: true,
+					},
+					{
+						name: "Sales",
+						path: "/sales",
+						configured: true,
+					},
+				],
+				recommendations: [
+					dbStatus !== "connected"
+						? "Restore MongoDB connectivity for data-backed routes."
+						: "Database connectivity is healthy.",
+					users === 0 ? "Run npm run seed in the server folder to load the sample dataset." : "Sample dataset is loaded and ready for UI wiring.",
+					"Add production build execution outside OneDrive-synced directories for reliability.",
+				],
+			},
+			{ source: "database" }
+		);
+	} catch (error) {
+		const inventory = getFallbackInventory();
+
+		sendApiResponse(
+			res,
+			200,
+			{
+				appName: "CourseCompass",
+				headline: "Academic operations dashboard",
+				dbStatus: "disconnected",
+				inventory,
+				modules: [
+					{ name: "Client", path: "/client", configured: true },
+					{ name: "General", path: "/general", configured: true },
+					{ name: "Management", path: "/management", configured: true },
+					{ name: "Sales", path: "/sales", configured: true },
+				],
+				recommendations: [
+					"MongoDB query failed, so the API fell back to the bundled dataset.",
+					"Atlas access can be restored by whitelisting the current IP address in MongoDB Atlas.",
+					"Add production build execution outside OneDrive-synced directories for reliability.",
+				],
+				message: error.message,
+			},
+			{
+				source: "fallback",
+				fallbackReason: "query_error",
+			}
+		);
+	}
 };
 
 export const getReadiness = (req, res) => {

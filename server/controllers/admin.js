@@ -9,6 +9,7 @@ import { findRuntimeUserById, getRuntimeCollection, updateRuntimeUser } from "..
 import { parseListQuery, escapeRegExp, applyInMemoryListQuery } from "../utils/queryOptions.js";
 import { normalizeAccountStatus, parseAccountStatus, parseRole } from "../utils/userGovernance.js";
 import { sanitizeUser } from "../utils/authUser.js";
+import { enqueueBackgroundJob, getBackgroundJobStats, getBackgroundJobs } from "../utils/backgroundJobs.js";
 
 const notFound = (message = "User was not found.") => new AppError(404, "NOT_FOUND", message);
 
@@ -314,6 +315,42 @@ export const revokeUserSessionsByAdmin = async (req, res, next) => {
 
 export const revokeAllSessionsByAdmin = async (req, res, next) => {
   try {
+    const runAsync = ["1", "true", "yes"].includes(String(req.query?.async || "").toLowerCase());
+
+    if (runAsync) {
+      const jobContext = {
+        app: req.app,
+        auth: req.auth,
+        requestId: req.requestId,
+      };
+
+      const job = enqueueBackgroundJob(req, {
+        name: "admin.sessions.revokeAll",
+        task: async () => {
+          await revokeAllSessions(jobContext);
+          recordAuditEvent(jobContext, {
+            action: "sessions.revoked",
+            targetUserId: null,
+            details: {
+              scope: "all_users",
+              mode: "async",
+            },
+          });
+        },
+      });
+
+      sendApiResponse(
+        res,
+        202,
+        {
+          message: "All sessions revocation queued.",
+          job,
+        },
+        { source: "system" }
+      );
+      return;
+    }
+
     await revokeAllSessions(req);
 
     recordAuditEvent(req, {
@@ -328,6 +365,19 @@ export const revokeAllSessionsByAdmin = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+export const getBackgroundJobsStatus = (req, res) => {
+  const limit = req.query?.limit;
+  sendApiResponse(
+    res,
+    200,
+    {
+      stats: getBackgroundJobStats(req.app),
+      jobs: getBackgroundJobs(req.app, limit),
+    },
+    { source: "system" }
+  );
 };
 
 export const getAuditEvents = (req, res, next) => {

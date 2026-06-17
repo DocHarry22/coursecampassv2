@@ -2,6 +2,7 @@ import express from "express";
 import {
   getAdminObservabilityMetrics,
   getAuditEvents,
+  getBackgroundJobsStatus,
   getUserDetails,
   listUsers,
   revokeAllSessionsByAdmin,
@@ -22,6 +23,7 @@ router.patch("/users/:id/role", updateUserRole);
 router.patch("/users/:id/status", updateUserAccountStatus);
 router.post("/users/:id/revoke-sessions", revokeUserSessionsByAdmin);
 router.post("/sessions/revoke-all", revokeAllSessionsByAdmin);
+router.get("/background-jobs", getBackgroundJobsStatus);
 router.get("/audit/events", getAuditEvents);
 router.get("/observability/metrics", getAdminObservabilityMetrics);
 
