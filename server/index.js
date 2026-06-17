@@ -1,5 +1,4 @@
 import express from 'express';
-import bodyParser from 'body-parser';
 import { resolveSrv } from 'dns/promises';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -47,8 +46,7 @@ app.use(
         '{"level":"info","requestId":":request-id","method":":method","url":":url","status":":status","responseTimeMs":":response-time","contentLength":":res[content-length]"}'
     )
 );
-app.use(bodyParser.json({ limit: jsonBodyLimit }));
-app.use(bodyParser.urlencoded({ extended: false, limit: jsonBodyLimit }));
+app.use(express.urlencoded({ extended: false, limit: jsonBodyLimit }));
 app.use(cookieParser());
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
@@ -63,6 +61,33 @@ app.get("/", (_req, res) => {
         status: "ok",
         startedAt: app.locals.startedAt,
         dbStatus: app.locals.dbStatus,
+        },
+        { source: "system" }
+    );
+});
+
+app.get("/healthz", (_req, res) => {
+    sendApiResponse(
+        res,
+        200,
+        {
+            status: "ok",
+            startedAt: app.locals.startedAt,
+        },
+        { source: "system" }
+    );
+});
+
+app.get("/readyz", (_req, res) => {
+    const dbStatus = app.locals.dbStatus || "unknown";
+    const ready = dbStatus === "connected" || dbStatus === "disabled";
+
+    sendApiResponse(
+        res,
+        ready ? 200 : 503,
+        {
+            status: ready ? "ready" : "not_ready",
+            dbStatus,
         },
         { source: "system" }
     );
